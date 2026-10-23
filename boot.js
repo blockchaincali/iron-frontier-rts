@@ -19,4 +19,6 @@ if(process.argv.includes('--test')){
  const result=spawnSync(process.execPath,['--test','test/engine.test.js','test/rooms.test.js'],{stdio:'inherit',cwd:root});
  process.exit(result.status??1);
 }
-require('./server.js');
+const {server}=require('./server.js');
+const port=Number(process.env.PORT||3000);
+server.listen(port,'0.0.0.0',()=>console.log('IRON FRONTIER listening on '+port));
