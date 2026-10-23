@@ -1,0 +1,16 @@
+{
+  "name": "iron-frontier-rts",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Original multiplayer real-time strategy game",
+  "scripts": {
+    "start": "node boot.js",
+    "test": "node boot.js --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
+  }
+}
