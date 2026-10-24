@@ -28,3 +28,11 @@ If this milestone must be reverted, revert its Git commit. The prior revision re
 - Reconnect identity is convenient rather than cryptographically hardened.
 - The server broadcasts full snapshots at roughly 8 Hz and has no per-client command rate limiter yet.
 - Playwright interaction coverage and two-browser-context gameplay remain future QA work; Milestone 1 uses endpoint/protocol tests plus headless Chrome desktop and mobile screenshot evidence in the local `artifacts/milestone-1/` directory.
+
+## Milestone 2 — beginner-first UX
+
+- Replaced the dense launch form with three explicit paths: Quick Battle, Guided Tutorial, and Play With Friend. Recruit is the first-time default and each difficulty explains its intended experience.
+- Added a six-stage, skippable tutorial driven by live match state. Recruitment, selection, move, attack-move, and capture steps advance only after the relevant action or authoritative snapshot; completion is stored locally and can be replayed with `?`.
+- Added tap/click contextual controls, selection and command feedback, dynamic dismissible mission guidance, clearer faction/resource/objective hierarchy, unit roles, and disabled-production explanations.
+- Reworked the battle layout for desktop, 360px portrait, and short landscape screens while preserving the Three.js/2D switch, room protocol, reconnect behavior, and keyboard shortcuts.
+- Added a repeated Recruit newcomer test plus a Playwright-based `npm run qa:ux` flow using installed Chrome/Chromium. It completes onboarding, monitors console/request failures, checks document overflow at 360px, and captures home/tutorial/battle screenshots for desktop and mobile.

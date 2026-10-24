@@ -5,13 +5,17 @@
   "description": "Original multiplayer real-time strategy game",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "qa:ux": "node scripts/ux-smoke.js"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "ws": "^8.18.3",
-    "three": "^0.180.0"
+    "three": "^0.180.0",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.1"
   }
 }
