@@ -4,8 +4,8 @@
   "private": true,
   "description": "Original multiplayer real-time strategy game",
   "scripts": {
-    "start": "node boot.js",
-    "test": "node boot.js --test"
+    "start": "node server.js",
+    "test": "node --test"
   },
   "engines": {
     "node": ">=20"
