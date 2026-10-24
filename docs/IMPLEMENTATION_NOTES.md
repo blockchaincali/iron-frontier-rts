@@ -36,3 +36,12 @@ If this milestone must be reverted, revert its Git commit. The prior revision re
 - Added tap/click contextual controls, selection and command feedback, dynamic dismissible mission guidance, clearer faction/resource/objective hierarchy, unit roles, and disabled-production explanations.
 - Reworked the battle layout for desktop, 360px portrait, and short landscape screens while preserving the Three.js/2D switch, room protocol, reconnect behavior, and keyboard shortcuts.
 - Added a repeated Recruit newcomer test plus a Playwright-based `npm run qa:ux` flow using installed Chrome/Chromium. It completes onboarding, monitors console/request failures, checks document overflow at 360px, and captures home/tutorial/battle screenshots for desktop and mobile.
+
+## Milestone 3 — cinematic 3D battlefield
+
+- Replaced the basic renderer with an original coastal command theatre: procedural terrain texture, layered roads and shoreline, water, concrete pads, instanced grass and rocks, palms, barricades, supply crates, fog, ACES tone mapping, warm key light and cool rim light.
+- Rebuilt every gameplay silhouette. Rifle entities are armored multi-soldier formations with helmets, visors, packs, weapons and gait motion; tanks have tracks, wheels, sloped armor and recoiling cannons; batteries have tracked chassis and individual missiles; faction HQs and turrets have distinct Azure/Crimson profiles.
+- Connected muzzle flashes, recoil, projectile trails, rocket smoke, hit sparks, impacts, destruction, relay capture energy and the orbital beam/shockwave to authoritative snapshots. Projectile snapshots now expose only the source identifier needed to associate the effect with its firing unit.
+- Added smoothly interpolated perspective camera zoom/pan, pinch input, reset/focus controls, keyboard rotation, WebGL context-loss handling, adaptive high/balanced quality and live renderer telemetry.
+- Added `npm run qa:3d` for real WebGL desktop/mobile execution, console and request-failure monitoring, 360px overflow validation, renderer telemetry and before/after, close-up, combat, orbital, mobile and 2D-fallback screenshots. Headless results use Chromium SwiftShader and therefore document a software-rendering lower bound, not representative hardware performance.
+- Added renderer regression tests for lifecycle/quality APIs, instancing, local-only assets, 2D and contextual-control preservation, and projectile/VFX integration. See `ART_DIRECTION.md` and `ASSET_CREDITS.md` for the visual system and provenance.

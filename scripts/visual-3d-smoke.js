@@ -31,7 +31,7 @@ async function prepare(context,label){
 }
 
 async function run(){
- const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox','--enable-webgl','--ignore-gpu-blocklist','--use-angle=swiftshader']});
+ const browser=await chromium.launch({headless:true,executablePath,args:['--no-sandbox','--enable-webgl','--ignore-gpu-blocklist']});
  const results={capturedAt:new Date().toISOString(),baseline,failures,desktop:null,mobile:null};
  try{
   const desktopContext=await browser.newContext({viewport:{width:1440,height:900},deviceScaleFactor:1});
@@ -44,14 +44,17 @@ async function run(){
     await page.waitForTimeout(650);
     await page.screenshot({path:path.join(output,`closeup-${target}.png`),fullPage:false});
    }
+   await page.evaluate(()=>{window.Iron3D?.resetCamera();window.Iron3D?.center(800,450);window.Iron3D?.zoom(1.05)});
    await page.locator('#select-all').click();
    const box=await page.locator('#world3d').boundingBox();
-   if(box)await page.mouse.click(box.x+box.width*.72,box.y+box.height*.47);
-   await page.waitForTimeout(9000);
+   await page.evaluate(()=>{const state=window.IronBridge?.snapshot();const enemy=state?.units?.find(unit=>unit.team!==window.IronBridge.team());if(enemy)window.IronBridge.handle({x:enemy.x,y:enemy.y},false,false)});
+   await page.waitForFunction(()=>window.IronBridge?.snapshot()?.projectiles?.length>0,{timeout:25000});
+   await page.evaluate(()=>{const shot=window.IronBridge?.snapshot()?.projectiles?.[0];if(shot)window.Iron3D?.center(shot.x,shot.y)});
+   await page.waitForTimeout(35);
    await page.screenshot({path:path.join(output,'active-combat.png'),fullPage:false});
    await page.locator('[data-action="orbital"]').click();
-   if(box)await page.mouse.click(box.x+box.width*.66,box.y+box.height*.46);
-   await page.waitForTimeout(850);
+   await page.evaluate(()=>window.IronBridge?.handle({x:800,y:450},false,false));
+   await page.waitForTimeout(1350);
    await page.screenshot({path:path.join(output,'orbital-strike.png'),fullPage:false});
    await page.locator('#view-mode').click();
    await page.locator('#world').waitFor({state:'visible'});
