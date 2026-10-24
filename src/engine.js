@@ -85,7 +85,7 @@ class Game {
   if(attacker!==null&&attacker!==undefined){this.teams[attacker].kills++;this.teams[attacker].credits+=target.type?9:40}
  }
  fire(source,target,damage,speed,splash=0){
-  this.projectiles.push({id:this.nextId('p'),x:source.x,y:source.y,from:source.team,toX:target.x,toY:target.y,targetId:target.id,damage,speed,splash,age:0,life:3,type:source.type||source.kind});
+  this.projectiles.push({id:this.nextId('p'),sourceId:source.id,x:source.x,y:source.y,from:source.team,toX:target.x,toY:target.y,targetId:target.id,damage,speed,splash,age:0,life:3,type:source.type||source.kind});
  }
  step(dt=0.05){
   if(this.phase!=='playing')return;
@@ -178,7 +178,7 @@ class Game {
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
   units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order})),
   bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius})),
-  nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
+  nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
   blasts:this.blasts.map(b=>({id:b.id,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }
 }

@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "qa:ux": "node scripts/ux-smoke.js"
+    "qa:ux": "node scripts/ux-smoke.js",
+    "qa:3d": "node scripts/visual-3d-smoke.js"
   },
   "engines": {
     "node": ">=20"
