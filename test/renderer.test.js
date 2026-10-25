@@ -17,10 +17,19 @@ test('3D renderer exposes camera, quality, inspection and telemetry controls',()
  assert.match(renderer,/powerPreference:'high-performance'/);
 });
 
-test('3D art is local and procedural with no remote runtime asset requests',()=>{
+test('3D art uses local original assets and reusable geometry without remote requests',()=>{
  assert.doesNotMatch(renderer,/https?:\/\//);
  assert.match(renderer,/terrainTexture\(\)/);
  assert.match(renderer,/rifleSquad|rocketBattery|hqModel/);
+ assert.match(renderer,/coastal-ground-albedo\.jpg/);
+ assert.match(renderer,/\$\{name\}-armor-albedo\.jpg/);
+ assert.match(renderer,/impact-explosion\.png/);
+ for(const asset of ['coastal-ground-albedo.jpg','azure-armor-albedo.jpg','crimson-armor-albedo.jpg','impact-explosion.png']){
+  const file=path.join(__dirname,'..','public','assets','3d',asset);
+  assert.equal(fs.existsSync(file),true,asset);
+  assert.ok(fs.statSync(file).size>20_000,`${asset} should contain production art`);
+  assert.ok(fs.statSync(file).size<1_500_000,`${asset} exceeds its runtime budget`);
+ }
 });
 
 test('2D fallback and contextual input bridge remain wired',()=>{
@@ -28,6 +37,13 @@ test('2D fallback and contextual input bridge remain wired',()=>{
  assert.match(gameUi,/window\.IronBridge=/);
  assert.match(gameUi,/applyViewMode\(\)/);
  assert.match(gameUi,/handleWorldTap/);
+ assert.match(gameUi,/active\(\)\)\{drawMinimap\(\);return\}/,'3D mode must continue painting the tactical minimap');
+});
+
+test('high quality mode throttles shadow refresh and caps transient effect families',()=>{
+ assert.match(renderer,/shadowMap\.autoUpdate=false/);
+ assert.match(renderer,/shadowFrame\+\+%10/);
+ for(const effect of ['sparks','smoke','scorch'])assert.match(renderer,new RegExp(`effect=>effect\\.type==='${effect}'`));
 });
 
 test('projectile snapshots identify their source for authoritative recoil and muzzle VFX',()=>{

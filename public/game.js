@@ -180,7 +180,7 @@ function createTerrain(){const bg=document.createElement('canvas');bg.width=WORL
  }
  for(let i=0;i<160;i++){const x=rnd()*1600,y=85+rnd()*730;c.fillStyle=['#a09a7d','#57685b','#dfc999'][i%3];c.beginPath();c.ellipse(x,y,2+rnd()*5,1.5+rnd()*3,rnd()*3,0,6.283);c.fill()}
  return bg;}
-function drawLoop(t){animation=requestAnimationFrame(drawLoop);if(view!=='playing'||!ctx||!game)return;if(prefer3d&&window.Iron3D?.active())return;lastDraw=t;const c=ctx;c.clearRect(0,0,WORLD.w,WORLD.h);c.save();c.translate(WORLD.w/2,WORLD.h/2);c.scale(zoom,zoom);c.translate(-camera.x,-camera.y);c.drawImage(background,0,0);
+function drawLoop(t){animation=requestAnimationFrame(drawLoop);if(view!=='playing'||!ctx||!game)return;if(prefer3d&&window.Iron3D?.active()){drawMinimap();return}lastDraw=t;const c=ctx;c.clearRect(0,0,WORLD.w,WORLD.h);c.save();c.translate(WORLD.w/2,WORLD.h/2);c.scale(zoom,zoom);c.translate(-camera.x,-camera.y);c.drawImage(background,0,0);
  for(const n of game.nodes)drawNode(c,n,t);for(const b of game.bases)if(b.hp>0)drawBase(c,b,t);for(const u of game.units)drawUnit(c,u,t);for(const p of game.projectiles)drawProjectile(c,p);for(const b of game.blasts)drawBlast(c,b,t);
  if(dragBox){c.strokeStyle='#70edee';c.fillStyle='#60fafa1a';c.lineWidth=2;c.fillRect(Math.min(dragBox.a.x,dragBox.b.x),Math.min(dragBox.a.y,dragBox.b.y),Math.abs(dragBox.a.x-dragBox.b.x),Math.abs(dragBox.a.y-dragBox.b.y));c.strokeRect(Math.min(dragBox.a.x,dragBox.b.x),Math.min(dragBox.a.y,dragBox.b.y),Math.abs(dragBox.a.x-dragBox.b.x),Math.abs(dragBox.a.y-dragBox.b.y))}
  c.restore();drawMinimap()}

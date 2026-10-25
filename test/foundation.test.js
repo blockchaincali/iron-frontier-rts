@@ -41,7 +41,11 @@ test('health and static routes return expected content types',async()=>{
   '/game.js':'text/javascript',
   '/3d.js':'text/javascript',
   '/vendor/three.module.js':'text/javascript',
-  '/assets/concept-battle.webp':'image/webp'
+  '/assets/concept-battle.webp':'image/webp',
+  '/assets/3d/coastal-ground-albedo.jpg':'image/jpeg',
+  '/assets/3d/azure-armor-albedo.jpg':'image/jpeg',
+  '/assets/3d/crimson-armor-albedo.jpg':'image/jpeg',
+  '/assets/3d/impact-explosion.png':'image/png'
  };
  for(const [route,type] of Object.entries(expected)){
   const response=await fetch(origin+route);
