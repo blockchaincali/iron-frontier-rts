@@ -30,3 +30,7 @@ test('Reconnect from a second socket recovers existing participant instead of cr
  assert.equal(newcomer.last('joined').existing,true);assert.equal(rooms.get(first.code).game.participants.length,1);
  assert.equal(a.readyState,3);
 });
+test('Multiplayer host map and terrain seed are authoritative for every participant',()=>{
+ const host=wss.connect(),guest=wss.connect();host.receive({type:'create',mode:'pvp',name:'Host',mapId:'desert'});const joined=host.last('joined');guest.receive({type:'join',code:joined.code,name:'Guest',mapId:'frozen'});
+ const hostState=host.last('state'),guestState=guest.last('state');assert.equal(hostState.mapId,'desert');assert.equal(guestState.mapId,'desert');assert.equal(hostState.terrainSeed,guestState.terrainSeed);assert.ok(Number.isInteger(hostState.terrainSeed));
+});

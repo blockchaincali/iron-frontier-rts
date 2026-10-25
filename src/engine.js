@@ -6,8 +6,8 @@ const hypot=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const teamName=t=>t===0?'AZURE UNION':'CRIMSON LEGION';
 
 class Game {
- constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran'}={}){
-  this.code=roomCode; this.mode=mode; this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit'; this.duration=duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
+ constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d}={}){
+  this.code=roomCode;this.mode=mode;this.mapId=['coastal','desert','frozen'].includes(mapId)?mapId:'coastal';this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.duration=duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
   this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.projectiles=[];this.blasts=[];this.participants=[];
   this.win=null;this.aiClock=0;this.incomeClock=0;this.snapshotClock=0;this.round=0;
   this.resetWorld();
@@ -174,7 +174,7 @@ class Game {
   if(!desired.length&&owned.length===3&&this.time>40){for(const u of this.units.filter(u=>u.team===team)){u.dest={x:team===0?1340:260,y:rnum(300,600)};u.order='attackmove'}}
  }
  end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(teamName(winner)+' WINS — '+reason,winner)}
- snapshot(){return {difficulty:this.difficulty,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
+ snapshot(){return {difficulty:this.difficulty,mapId:this.mapId,terrainSeed:this.terrainSeed,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
   units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order})),
   bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius})),

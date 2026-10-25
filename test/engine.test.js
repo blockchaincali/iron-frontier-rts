@@ -7,6 +7,11 @@ test('Starts a match with two armed factions, 3 relays, bases and resources',()=
  assert.equal(g.units.filter(u=>u.team===0).length,5);assert.equal(g.bases.length,6);
  assert.ok(g.teams.every(t=>t.credits===350));
 });
+test('Map identity and deterministic terrain seed survive snapshots and rematches',()=>{
+ const g=new Game({mode:'solo',roomCode:'ICE1',mapId:'frozen',terrainSeed:424242});g.addParticipant('p0','Commander',0);g.addParticipant('bot','Rival',1,true);g.start();
+ assert.equal(g.snapshot().mapId,'frozen');assert.equal(g.snapshot().terrainSeed,424242);g.end(0,'TEST');g.start();assert.equal(g.snapshot().mapId,'frozen');assert.equal(g.snapshot().terrainSeed,424242);
+ const invalid=new Game({mapId:'unknown',terrainSeed:-1});assert.equal(invalid.mapId,'coastal');assert.equal(invalid.terrainSeed,4294967295);
+});
 test('Recruitment debits resources, enforces supply and rejects invalid unit types',()=>{
  const g=match(),before=g.teams[0].credits;
  let r=g.spawn(0,'tank');assert.equal(r.ok,true);assert.equal(g.teams[0].credits,before-165);

@@ -24,7 +24,7 @@ test('startup uses checked-in source without a generated bootstrap',()=>{
  const pkg=require('../package.json');
  assert.equal(pkg.scripts.start,'node server.js');
  assert.equal(pkg.scripts.test,'node --test');
- for(const file of ['server.js','src/config.js','src/engine.js','public/index.html','public/style.css','public/game.js','public/3d.js']){
+ for(const file of ['server.js','src/config.js','src/engine.js','public/index.html','public/maps.js','public/style.css','public/game.js','public/3d.js']){
   assert.equal(fs.existsSync(path.join(__dirname,'..',file)),true,`${file} must be checked in`);
  }
 });
@@ -39,6 +39,7 @@ test('health and static routes return expected content types',async()=>{
   '/':'text/html',
   '/style.css':'text/css',
   '/game.js':'text/javascript',
+  '/maps.js':'text/javascript',
   '/3d.js':'text/javascript',
   '/vendor/three.module.js':'text/javascript',
   '/assets/concept-battle.webp':'image/webp',
