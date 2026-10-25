@@ -25,9 +25,11 @@ The competition battlefield is a single coastal relay corridor: defended concret
 
 Warm directional sunlight provides form and long readable shadows; cool sky and rim lighting separate units from terrain. ACES tone mapping controls highlights. Combat effects are brief and gameplay-driven: a projectile event produces recoil and muzzle sparks, impacts produce debris and smoke, health loss flashes a unit, destruction produces a larger burst, relay ownership changes trigger an energy burst, and orbital strikes create a vertical beam, expanding core and shock ring.
 
+Milestone 3.5 adds weathered faction armor albedos, a tactile coastal ground surface, panel seams, vents, lamps, identification sprites, layered selection chevrons, and a transparent fire/smoke/debris impact sprite. Orbital strikes deliberately read in three beats: pulsing ground telegraph and charge column, white-hot beam impact with camera impulse, then expanding shock, smoke, sparks, debris, and a persistent scorch.
+
 ## Camera and quality
 
-The default perspective is a comfortable isometric overview with smooth target and zoom interpolation. Wheel/pinch zoom, touch/alternate-drag pan, keyboard rotation, reset, and focus-selection controls are supported. High quality favors antialiasing, richer formations, vegetation and dynamic shadows. Balanced quality reduces formation complexity, wheels, missiles, vegetation, pixel ratio and shadows while retaining every gameplay silhouette and effect category.
+The default perspective is a comfortable isometric overview with smooth target and zoom interpolation. Wheel/pinch zoom, touch/alternate-drag pan, keyboard rotation, reset, and focus-selection controls are supported. High quality favors antialiasing, richer formations, vegetation and periodically refreshed soft shadows. Balanced quality reduces formation complexity, wheels, missiles, vegetation, pixel ratio and shadows while retaining every gameplay silhouette and effect category. Deterministic formation offsets keep friendlies from occupying exactly the same screen-space position.
 
 ## Guardrails
 

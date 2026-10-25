@@ -36,6 +36,13 @@ async function clickBattlefield(page,xRatio,yRatio){
  await page.mouse.click(box.x+box.width*xRatio,box.y+box.height*yRatio);
 }
 
+async function clickFriendlyUnit(page){
+ const unit=await page.evaluate(()=>{const team=window.IronBridge.team();const units=window.IronBridge.snapshot().units.filter(value=>value.team===team);return units.at(-1)||units[0]});
+ if(!unit)throw new Error('No friendly unit was available for tutorial selection');
+ await clickBattlefield(page,unit.x/1600,unit.y/900);
+ return unit;
+}
+
 async function runDesktop(browser){
  const context=await browser.newContext({viewport:{width:1366,height:768},deviceScaleFactor:1});
  const page=await setupPage(context,'desktop');
@@ -46,9 +53,9 @@ async function runDesktop(browser){
  await page.screenshot({path:path.join(output,'tutorial-desktop.png'),fullPage:true});
  await page.locator('[data-build="rifle"]').click();
  await page.locator('#mission-title').filter({hasText:'Select a unit'}).waitFor({timeout:5000});
- await clickBattlefield(page,.22,.48);
+ const unit=await clickFriendlyUnit(page);
  await page.locator('#mission-title').filter({hasText:'Move into position'}).waitFor();
- await clickBattlefield(page,.38,.32);
+ await clickBattlefield(page,Math.min(.46,(unit.x+170)/1600),Math.max(.2,(unit.y-80)/900));
  await page.locator('#mission-title').filter({hasText:'Advance and engage'}).waitFor({timeout:5000});
  await page.locator('[data-action="attackmove"]').click();
  await clickBattlefield(page,.5,.5);

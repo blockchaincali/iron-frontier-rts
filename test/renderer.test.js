@@ -11,7 +11,7 @@ const gameUi=fs.readFileSync(path.join(__dirname,'..','public','game.js'),'utf8'
 function match(){const g=new Game({mode:'solo',roomCode:'VFX3'});g.addParticipant('p0','Commander',0);g.addParticipant('bot','Rival AI',1,true);g.start();return g}
 
 test('3D renderer exposes camera, quality, inspection and telemetry controls',()=>{
- for(const api of ['focusSelection','resetCamera','inspect','metrics','quality'])assert.match(renderer,new RegExp(`${api}[:(]`));
+ for(const api of ['focusSelection','resetCamera','inspect','screenPoint','metrics','quality'])assert.match(renderer,new RegExp(`${api}[:(]`));
  assert.match(renderer,/webglcontextlost/);
  assert.match(renderer,/InstancedMesh/);
  assert.match(renderer,/powerPreference:'high-performance'/);
@@ -42,7 +42,7 @@ test('2D fallback and contextual input bridge remain wired',()=>{
 
 test('high quality mode throttles shadow refresh and caps transient effect families',()=>{
  assert.match(renderer,/shadowMap\.autoUpdate=false/);
- assert.match(renderer,/shadowFrame\+\+%10/);
+ assert.match(renderer,/shadowFrame\+\+%30/);
  for(const effect of ['sparks','smoke','scorch'])assert.match(renderer,new RegExp(`effect=>effect\\.type==='${effect}'`));
 });
 
