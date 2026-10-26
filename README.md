@@ -20,7 +20,8 @@ npm test
 - WebSocket multiplayer server
 - Tactical game simulation in `src/engine.js`
 - Desktop/mobile client in `public/`
-- AI opponent, unit building, 3 capture points and artillery
+- AI opponent, unit building, 3 capture points and orbital artillery
+- Coastal, desert and frozen 3D battlegrounds with a tactical 2D fallback
 - Automated tests, original artwork and architecture documentation
 
 ## Beginner controls
@@ -31,3 +32,5 @@ npm test
 - Switch between the Three.js battlefield and the 2D tactical map at any time.
 
 The current build includes a Three.js battlefield and a fully playable 2D tactical fallback. Run one instance on Render because active room state is held in memory.
+
+Additional browser validation commands are `npm run qa:ux`, `npm run qa:3d`, `npm run qa:world`, and `npm run qa:final`. Start the local server first and set `IRON_FRONTIER_URL` when it is not running at the script default.

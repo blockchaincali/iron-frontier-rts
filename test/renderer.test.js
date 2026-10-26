@@ -51,6 +51,7 @@ test('2D fallback and contextual input bridge remain wired',()=>{
  assert.match(gameUi,/handleWorldTap/);
  assert.match(gameUi,/active\(\)\)\{drawMinimap\(\);return\}/,'3D mode must continue painting the tactical minimap');
  assert.match(gameUi,/data\.phase==='lobby'&&rosterChanged/,'multiplayer lobby must rerender when its authoritative roster changes');
+ assert.match(gameUi,/code=sess\?\.code\|\|sess\?\.room/,'reconnect must replay the server room-code contract and support legacy sessions');
 });
 
 test('high quality mode throttles shadow refresh and caps transient effect families',()=>{

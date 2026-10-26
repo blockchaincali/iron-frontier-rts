@@ -42,7 +42,7 @@ test('health and static routes return expected content types',async()=>{
   '/maps.js':'text/javascript',
   '/3d.js':'text/javascript',
   '/vendor/three.module.js':'text/javascript',
-  '/assets/concept-battle.webp':'image/webp',
+  '/assets/iron-frontier-hero.webp':'image/webp',
   '/assets/3d/coastal-ground-albedo.jpg':'image/jpeg',
   '/assets/3d/azure-armor-albedo.jpg':'image/jpeg',
   '/assets/3d/crimson-armor-albedo.jpg':'image/jpeg',

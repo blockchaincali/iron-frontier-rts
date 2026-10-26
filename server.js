@@ -7,7 +7,7 @@ const PORT=Number(process.env.PORT||3000),rooms=new Map(),STEP=0.05;
 const uid=()=>crypto.randomBytes(9).toString('hex');
 const newCode=()=>Array.from(crypto.randomBytes(4),n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
 const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data))};
-const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/concept-battle.webp':'assets/concept-battle.webp','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
+const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
 const contentType={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp'};
 const server=http.createServer((req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname;
