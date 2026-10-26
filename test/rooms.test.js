@@ -34,3 +34,7 @@ test('Multiplayer host map and terrain seed are authoritative for every particip
  const host=wss.connect(),guest=wss.connect();host.receive({type:'create',mode:'pvp',name:'Host',mapId:'desert'});const joined=host.last('joined');guest.receive({type:'join',code:joined.code,name:'Guest',mapId:'frozen'});
  const hostState=host.last('state'),guestState=guest.last('state');assert.equal(hostState.mapId,'desert');assert.equal(guestState.mapId,'desert');assert.equal(hostState.terrainSeed,guestState.terrainSeed);assert.ok(Number.isInteger(hostState.terrainSeed));
 });
+test('Solo tutorial protection is authoritative and ends only on trainee command',()=>{
+ const ws=wss.connect();ws.receive({type:'create',mode:'solo',difficulty:'recruit',training:true,name:'Trainee'});const joined=ws.last('joined'),room=rooms.get(joined.code);assert.equal(room.game.training,true);room.game.step(5);assert.equal(room.game.time,0);assert.equal(ws.last('state').training,true);
+ ws.receive({type:'trainingComplete'});assert.equal(room.game.training,false);assert.equal(ws.last('state').training,false);
+});

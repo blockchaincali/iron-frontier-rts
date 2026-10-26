@@ -1,5 +1,13 @@
 # IRON FRONTIER implementation notes
 
+## Release stabilization - renderer lifecycle and protected training
+
+- Batched static submeshes by material, pooled spark/smoke particles, removed shader-churning transient lights, throttled the tactical minimap, and made HUD rendering state-differential. Renderer teardown now disposes merged buffers and mount-owned resources.
+- Added an automatic balanced tier for constrained devices without removing the high-quality option or the 2D fallback.
+- Added an authoritative solo-only training state to the engine and protocol. It freezes the match clock and hostile behavior while preserving enough resources and units for every onboarding step, then cleanly hands control to normal battle rules on completion or skip.
+- Added renderer lifecycle, batching/pooling, server protocol, three-minute training protection, and browser onboarding regressions. `npm run qa:performance` records a two-minute CDP trace and machine-readable performance report.
+- See `RELEASE_PERFORMANCE_REPORT.md` for measured before/after results and remaining hardware-validation limits.
+
 ## Milestone 1 — architecture stabilization
 
 ### Baseline (October 24, 2026)

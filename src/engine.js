@@ -6,8 +6,8 @@ const hypot=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const teamName=t=>t===0?'AZURE UNION':'CRIMSON LEGION';
 
 class Game {
- constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d}={}){
-  this.code=roomCode;this.mode=mode;this.mapId=['coastal','desert','frozen'].includes(mapId)?mapId:'coastal';this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.duration=duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
+ constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false}={}){
+  this.code=roomCode;this.mode=mode;this.mapId=['coastal','desert','frozen'].includes(mapId)?mapId:'coastal';this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.duration=duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
   this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.projectiles=[];this.blasts=[];this.participants=[];
   this.win=null;this.aiClock=0;this.incomeClock=0;this.snapshotClock=0;this.round=0;
   this.resetWorld();
@@ -33,8 +33,10 @@ class Game {
    for(let i=0;i<(beginnerBot?2:4);i++)this.spawn(team,'rifle',true);
    if(!beginnerBot)this.spawn(team,'tank',true);
   }
+  if(this.training)for(const unit of this.units){unit.order='hold';unit.dest=null;unit.hold=true}
   this.event('THE FRONTIER IS CONTESTED — CAPTURE THE THREE RELAYS');return true;
  }
+ completeTraining(team){if(!this.training)return {ok:true};if(team!==0)return {ok:false,reason:'Only the trainee commander can finish training'};this.training=false;this.aiClock=0;this.incomeClock=0;for(const unit of this.units.filter(unit=>unit.team===1)){unit.hold=false;unit.order='attackmove';unit.dest={x:800,y:450}}this.event('FIELD TRAINING COMPLETE - LIVE BATTLE STARTED',0);return {ok:true}}
  supply(team){return this.units.filter(u=>u.team===team).reduce((sum,u)=>sum+UNITS[u.type].supply,0)}
  spawn(team,type,free=false){
   const d=UNITS[type],t=this.teams[team]; if(!d||!t||this.phase!=='playing'&&!free)return {ok:false,reason:'No battle running'};
@@ -77,6 +79,7 @@ class Game {
   return {ok:true};
  }
  applyDamage(target,damage,attacker){
+  if(this.training&&target.team===0)return;
   target.hp=Math.max(0,target.hp-damage);
   if(target.hp>0)return;
   if(target.type){this.units=this.units.filter(u=>u.id!==target.id)}
@@ -89,10 +92,11 @@ class Game {
  }
  step(dt=0.05){
   if(this.phase!=='playing')return;
-  dt=clamp(dt,0,0.12);this.time+=dt;this.aiClock+=dt;this.incomeClock+=dt;
-  for(const b of this.bases){if(b.hp<=0)continue;b.cd-=dt;const target=this.closestEnemy(b,b.team,b.range);if(target&&b.cd<=0){this.fire(b,target,b.kind==='hq'?22:25,575,9);b.cd=b.kind==='hq'?0.65:1.0}}
+  dt=clamp(dt,0,0.12);if(!this.training)this.time+=dt;this.aiClock+=dt;this.incomeClock+=dt;
+  for(const b of this.bases){if(b.hp<=0)continue;b.cd-=dt;if(this.training)continue;const target=this.closestEnemy(b,b.team,b.range);if(target&&b.cd<=0){this.fire(b,target,b.kind==='hq'?22:25,575,9);b.cd=b.kind==='hq'?0.65:1.0}}
   for(const u of [...this.units]){
    const d=UNITS[u.type];u.cd-=dt;
+   if(this.training&&u.team===1)continue;
    let target=u.targetId?[...this.units,...this.bases].find(t=>t.id===u.targetId&&t.hp>0&&t.team!==u.team):null;
    if(!target&&u.order!=='move')target=this.closestEnemy(u,u.team,d.range+(u.order==='focus'?220:35));
    if(target&&hypot(u,target)<=d.range){
@@ -133,7 +137,7 @@ class Game {
    if(v.age>=v.delay+v.duration)this.blasts=this.blasts.filter(b=>b!==v);
   }
   for(const node of this.nodes){
-   const near=[0,1].map(team=>this.units.filter(u=>u.team===team&&Math.hypot(u.x-node.x,u.y-node.y)<90).length);
+   const near=[0,1].map(team=>this.training&&team===1?0:this.units.filter(u=>u.team===team&&Math.hypot(u.x-node.x,u.y-node.y)<90).length);
    const direction=near[0]&&!near[1]?-1:near[1]&&!near[0]?1:0;
    if(direction){node.progress=clamp(node.progress+direction*(15+Math.min(near[direction===-1?0:1]-1,3)*4)*dt,-100,100)}
    const previous=node.owner;
@@ -143,12 +147,13 @@ class Game {
    if(previous!==node.owner){this.event(node.owner===-1?node.name+' CONTESTED':teamName(node.owner)+' CAPTURED '+node.name,node.owner)}
   }
   if(this.incomeClock>=1){const seconds=Math.floor(this.incomeClock);this.incomeClock-=seconds;
-   for(let t=0;t<2;t++){const owned=this.nodes.filter(n=>n.owner===t).length;this.teams[t].credits=Math.min(1100,this.teams[t].credits+(13+owned*13)*seconds);this.teams[t].energy=Math.min(180,this.teams[t].energy+(1.2+owned*1.9)*seconds);this.teams[t].points+=owned*seconds*2}
+   for(let t=0;t<2;t++){const owned=this.nodes.filter(n=>n.owner===t).length;this.teams[t].credits=Math.min(1100,this.teams[t].credits+(13+owned*13)*seconds);this.teams[t].energy=Math.min(180,this.teams[t].energy+(1.2+owned*1.9)*seconds);if(!this.training)this.teams[t].points+=owned*seconds*2}
+   if(this.training){this.teams[0].credits=Math.max(this.teams[0].credits,620);this.teams[0].energy=Math.max(this.teams[0].energy,130)}
   }
   const aiPeriod=this.mode==='solo'?{recruit:5.2,standard:2.8,veteran:1.3}[this.difficulty]:1.3;
-  if(this.aiClock>=aiPeriod){this.aiClock=0;for(const p of this.participants.filter(p=>p.bot))this.aiAction(p.team)}
-  if(this.teams.some(t=>t.points>=WIN_SCORE))this.end(this.teams[0].points>this.teams[1].points?0:1,'CONTROL POINT VICTORY');
-  if(this.time>=this.duration)this.end(this.teams[0].points===this.teams[1].points?this.bases[0].hp>=this.bases[1].hp?0:1:this.teams[0].points>this.teams[1].points?0:1,'TIME LIMIT');
+  if(!this.training&&this.aiClock>=aiPeriod){this.aiClock=0;for(const p of this.participants.filter(p=>p.bot))this.aiAction(p.team)}
+  if(!this.training&&this.teams.some(t=>t.points>=WIN_SCORE))this.end(this.teams[0].points>this.teams[1].points?0:1,'CONTROL POINT VICTORY');
+  if(!this.training&&this.time>=this.duration)this.end(this.teams[0].points===this.teams[1].points?this.bases[0].hp>=this.bases[1].hp?0:1:this.teams[0].points>this.teams[1].points?0:1,'TIME LIMIT');
  }
  closestEnemy(actor,team,range){let best=null,nearest=Infinity;
   for(const u of [...this.units,...this.bases]){if(u.team===team||u.hp<=0)continue;const d=hypot(actor,u);if(d<range&&d<nearest){nearest=d;best=u}}return best;
@@ -174,7 +179,7 @@ class Game {
   if(!desired.length&&owned.length===3&&this.time>40){for(const u of this.units.filter(u=>u.team===team)){u.dest={x:team===0?1340:260,y:rnum(300,600)};u.order='attackmove'}}
  }
  end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(teamName(winner)+' WINS — '+reason,winner)}
- snapshot(){return {difficulty:this.difficulty,mapId:this.mapId,terrainSeed:this.terrainSeed,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
+ snapshot(){return {difficulty:this.difficulty,mapId:this.mapId,terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
   units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order})),
   bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius})),

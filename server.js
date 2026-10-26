@@ -11,7 +11,7 @@ const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/':
 const contentType={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp'};
 const server=http.createServer((req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname;
- if(pathname==='/vendor/three.module.js'||pathname==='/vendor/three.core.js'){const name=pathname.endsWith('three.core.js')?'three.core.js':'three.module.js';const threeFile=path.join(__dirname,'node_modules','three','build',name);return fs.readFile(threeFile,(err,data)=>{if(err){res.writeHead(503);return res.end('3D library unavailable')}res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'public, max-age=604800'});res.end(data)})}
+ if(pathname==='/vendor/three.module.js'||pathname==='/vendor/three.core.js'||pathname==='/vendor/BufferGeometryUtils.js'){const threeFile=pathname.endsWith('BufferGeometryUtils.js')?path.join(__dirname,'node_modules','three','examples','jsm','utils','BufferGeometryUtils.js'):path.join(__dirname,'node_modules','three','build',pathname.endsWith('three.core.js')?'three.core.js':'three.module.js');return fs.readFile(threeFile,(err,data)=>{if(err){res.writeHead(503);return res.end('3D library unavailable')}res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'public, max-age=604800'});res.end(data)})}
  if(pathname==='/healthz'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({status:'ok',game:'Iron Frontier',rooms:rooms.size}))}
  const file=staticFiles[pathname];if(!file){res.writeHead(404);return res.end('Not found')}
  const filePath=path.join(__dirname,'public',file);
@@ -32,7 +32,7 @@ function register(ws,room,p,existing=false){
 function create(ws,msg){
  if(ws.room)return send(ws,{type:'error',message:'Already in a room'});
  let code=newCode();while(rooms.has(code))code=newCode();
- const mode=msg.mode==='pvp'?'pvp':'solo';const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed});
+ const mode=msg.mode==='pvp'?'pvp':'solo';const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,training:mode==='solo'&&msg.training===true});
  const room={code,game,hostId:null,sockets:new Map(),lastActivity:Date.now()};rooms.set(code,room);
  const id=uid(),name=String(msg.name||'Commander').trim().slice(0,18)||'Commander';game.addParticipant(id,name,0,false);room.hostId=id;
  if(mode==='solo')game.addParticipant(uid(),'CRIMSON BOT',1,true);
@@ -58,6 +58,7 @@ function action(ws,msg){
   case 'build':outcome=game.spawn(player.team,String(msg.unitType||''));break;
   case 'command':outcome=game.command(player.team,msg.unitIds,msg.action,msg.x,msg.y,msg.targetId);break;
   case 'ability':outcome=game.orbital(player.team,msg.x,msg.y);break;
+  case 'trainingComplete':outcome=game.completeTraining(player.team);break;
   case 'surrender':if(game.phase==='playing')game.end(1-player.team,'SURRENDER');outcome={ok:true};break;
   case 'leave':{
    if(game.phase==='playing'&&!game.participants.some(v=>v.bot))game.end(1-player.team,'OPPONENT LEFT');
@@ -87,7 +88,7 @@ let accumulator=0,last=performance.now(),broadcastClock=0;
 const loop=setInterval(()=>{
  const now=performance.now();accumulator=Math.min(0.25,accumulator+(now-last)/1000);last=now;
  while(accumulator>=STEP){for(const room of rooms.values())if(room.game.phase==='playing')room.game.step(STEP);accumulator-=STEP;broadcastClock+=STEP}
- if(broadcastClock>=0.12){broadcastClock=0;for(const room of rooms.values())if(room.game.phase==='playing')broadcastState(room)}
+ if(broadcastClock>=0.15){broadcastClock=0;for(const room of rooms.values())if(room.game.phase==='playing')broadcastState(room)}
  const age=Date.now();for(const [code,room] of rooms){if(![...room.sockets.values()].some(ws=>ws.readyState===WebSocket.OPEN)&&age-room.lastActivity>5*60*1000)rooms.delete(code)}
 },50);loop.unref();
 const keepalive=setInterval(()=>{for(const ws of wss.clients){if(ws.alive===false){ws.terminate();continue}ws.alive=false;ws.ping()}},25000);keepalive.unref();

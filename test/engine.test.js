@@ -55,3 +55,10 @@ test('Long simulation stays finite with valid world coordinates',()=>{
  const snap=g.snapshot();assert.ok(snap.units.every(u=>Number.isFinite(u.x)&&Number.isFinite(u.y)&&u.x>=105&&u.x<=1495&&u.y>=85&&u.y<=815));
  assert.ok(snap.projectiles.length<200);assert.ok(snap.blasts.length<100);
 });
+test('Training freezes hostile pressure and keeps every tutorial step achievable',()=>{
+ const g=new Game({mode:'solo',roomCode:'TRAIN',difficulty:'recruit',training:true});g.addParticipant('p0','Trainee',0);g.addParticipant('bot','Instructor',1,true);g.start();
+ const startingHp=new Map(g.units.filter(unit=>unit.team===0).map(unit=>[unit.id,unit.hp]));for(let i=0;i<3600;i++)g.step(.05);
+ assert.equal(g.phase,'playing');assert.equal(g.time,0);assert.equal(g.nodes.some(node=>node.owner===1),false);assert.ok(g.units.filter(unit=>unit.team===0).every(unit=>unit.hp===startingHp.get(unit.id)));assert.ok(g.teams[0].credits>=620);
+ const trainee=g.units.find(unit=>unit.team===0);trainee.x=g.nodes[0].x;trainee.y=g.nodes[0].y;trainee.hold=true;trainee.order='hold';for(let i=0;i<180;i++)g.step(.05);assert.equal(g.nodes[0].owner,0);assert.equal(g.spawn(0,'rifle').ok,true);
+ assert.equal(g.completeTraining(0).ok,true);g.step(.1);assert.equal(g.training,false);assert.ok(g.time>0);assert.ok(g.units.filter(unit=>unit.team===1).every(unit=>unit.order==='attackmove'));
+});

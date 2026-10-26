@@ -27,3 +27,10 @@ These results describe this browser and hardware only. The mobile figures use Ch
 ## Error audit
 
 The final UX, 3D, world, and two-browser runs recorded no application console errors, page exceptions, or failed asset requests.
+
+## Release-blocking performance and tutorial follow-up
+
+- Added a 120-second Chromium/DevTools performance workload covering recruitment, commands, crowded combat, orbital strikes, rematch handling, WebSocket traffic, long tasks, heap use, input latency, draw calls, triangles, and a streamed trace.
+- Effective frame rate improved from 23.3 to 59.3 FPS on the measured Intel UHD 620 environment. Average draw calls fell from 957 to 526, shader/program query time from 76.12 seconds to 0.73 seconds, long-task time from 77.91 seconds to 1.14 seconds, and average input-to-paint delay from 138.2 ms to 32.8 ms.
+- Guided training is now protected by the authoritative simulation: its clock is frozen, enemy aggression/damage/capture is disabled, victory scoring is suspended, and resources remain sufficient. Completing or skipping explicitly starts normal battle conditions.
+- The full measurements, methodology, limitations, and artifact names are in `docs/RELEASE_PERFORMANCE_REPORT.md`.

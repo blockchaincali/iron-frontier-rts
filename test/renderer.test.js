@@ -49,15 +49,23 @@ test('2D fallback and contextual input bridge remain wired',()=>{
  assert.match(gameUi,/window\.IronBridge=/);
  assert.match(gameUi,/applyViewMode\(\)/);
  assert.match(gameUi,/handleWorldTap/);
- assert.match(gameUi,/active\(\)\)\{drawMinimap\(\);return\}/,'3D mode must continue painting the tactical minimap');
+ assert.match(gameUi,/active\(\)\)\{if\(t-lastDraw>=200\)/,'3D mode must continue painting the tactical minimap at a bounded cadence');
  assert.match(gameUi,/data\.phase==='lobby'&&rosterChanged/,'multiplayer lobby must rerender when its authoritative roster changes');
  assert.match(gameUi,/code=sess\?\.code\|\|sess\?\.room/,'reconnect must replay the server room-code contract and support legacy sessions');
 });
 
 test('high quality mode throttles shadow refresh and caps transient effect families',()=>{
  assert.match(renderer,/shadowMap\.autoUpdate=false/);
- assert.match(renderer,/shadowFrame\+\+%30/);
+ assert.match(renderer,/shadowFrame\+\+%60/);
  for(const effect of ['sparks','smoke','scorch'])assert.match(renderer,new RegExp(`effect=>effect\\.type==='${effect}'`));
+});
+
+test('renderer batches detailed entities, pools particles, and disposes lifecycle resources',()=>{
+ assert.match(renderer,/mergeGeometries/,'static unit submeshes should be batched');
+ assert.match(renderer,/particlePool/,'combat particles should reuse GPU objects');
+ assert.match(renderer,/disposeOwnedGeometry/,'merged entity buffers must be released');
+ assert.doesNotMatch(renderer,/new THREE\.PointLight/,'transient explosions must not recompile lighting programs');
+ assert.match(gameUi,/t-lastDraw>=200/,'the hidden 2D minimap must be throttled while 3D is active');
 });
 
 test('projectile snapshots identify their source for authoritative recoil and muzzle VFX',()=>{

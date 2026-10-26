@@ -50,6 +50,10 @@ async function runDesktop(browser){
  await assertNoOverflow(page,'desktop home');
  await page.locator('#tutorial').click();
  await page.locator('#mission-title').filter({hasText:'Build your squad'}).waitFor();
+ const protectedStart=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp)}});
+ await page.waitForTimeout(2200);
+ const protectedLater=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp),enemyRelays:state.nodes.filter(node=>node.owner===1).length}});
+ if(!protectedStart.training||!protectedLater.training||protectedLater.time!==protectedStart.time||protectedLater.enemyRelays||JSON.stringify(protectedLater.hp)!==JSON.stringify(protectedStart.hp))throw new Error(`Tutorial protection failed: ${JSON.stringify({protectedStart,protectedLater})}`);
  await page.screenshot({path:path.join(output,'tutorial-desktop.png'),fullPage:true});
  await page.locator('[data-build="rifle"]').click();
  await page.locator('#mission-title').filter({hasText:'Select a unit'}).waitFor({timeout:5000});
@@ -63,6 +67,7 @@ async function runDesktop(browser){
  await clickBattlefield(page,.5,.5);
  await page.locator('#mission-title').filter({hasText:'How to win'}).waitFor({timeout:35000});
  await page.locator('#tutorial-ready').click();
+ await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.time>0},{timeout:5000});
  await page.getByText('Training complete — the frontier is yours',{exact:true}).waitFor();
  await page.screenshot({path:path.join(output,'battle-desktop.png'),fullPage:true});
  await assertNoOverflow(page,'desktop battle');
@@ -79,7 +84,8 @@ async function runMobile(browser){
  await page.screenshot({path:path.join(output,'tutorial-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile tutorial');
  await page.locator('#tutorial-skip').tap();
- await page.waitForTimeout(2800);
+ await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.time>0},{timeout:5000});
+ await page.waitForTimeout(800);
  await page.screenshot({path:path.join(output,'battle-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile battle');
  await context.close();
