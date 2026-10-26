@@ -24,6 +24,8 @@ The source images produced by the generator are retained in the local Codex gene
 
 All meshes, structures, environment dressing, road markings, procedural road texture, selection indicators, badges, projectile trails, smoke, sparks, lighting, animation parameters, and camera behavior in `public/3d.js` were created specifically for IRON FRONTIER. They use reusable Three.js geometry plus the local art above. There are no network-loaded models, textures, animations, particles, sounds, or other third-party battlefield assets.
 
+Milestone 3.6 adds only original code-authored environment forms: instanced desert mesas and cacti, frozen cliffs/river/ice marks, expanded coastal water and shoreline, biome vegetation, deterministic scenery placement, atmosphere palettes, and CSS-drawn map preview cards. No third-party map, texture, model, or preview asset was introduced.
+
 The renderer uses the repository's installed `three` package, served locally as `/vendor/three.module.js`. Three.js is distributed under the MIT License; its license is included at `node_modules/three/LICENSE` after dependency installation.
 
 ## Existing project artwork

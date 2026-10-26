@@ -2,7 +2,7 @@
 
 ## Visual thesis
 
-IRON FRONTIER is a near-future coastal conflict presented as a tabletop command theatre brought to life. The world uses clean, readable silhouettes, sun-bleached military surfaces, cyan or ember-red faction technology, and warm kinetic weapon effects. It should feel serious and energetic without becoming visually noisy or photorealistic.
+IRON FRONTIER is a near-future global conflict presented as a tabletop command theatre brought to life. The world uses clean, readable silhouettes, weathered military surfaces, cyan or ember-red faction technology, and warm kinetic weapon effects. It should feel serious and energetic without becoming visually noisy or photorealistic.
 
 ## Factions
 
@@ -19,7 +19,13 @@ IRON FRONTIER is a near-future coastal conflict presented as a tabletop command 
 
 ## Battlefield language
 
-The competition battlefield is a single coastal relay corridor: defended concrete pads at each end, a dark central military road, lighter service routes, a sandy shoreline and water edge. Palms, rocks, grass clusters, crates and barricades frame combat lanes but do not cover objectives or important click targets. Relay towers use concentric energy rings and a floating core so their capture state reads instantly.
+All battlegrounds share the same fair relay corridor and readable concrete base pads, while the visual world extends well beyond simulation space and ends behind natural formations rather than a rectangular board edge. Scenery never participates in gameplay picking.
+
+- **Coastal Frontier:** humid olive ground, palms and scrub, a broad tropical shoreline, open ocean, sun-washed service roads and green perimeter cliffs.
+- **Desert Front:** ochre sand, wind-cut mesas, cacti, dry scrub, dusty roads and a warm amber atmosphere.
+- **Frozen Territory:** pale snow, blue ice, a frozen river, winter pines, black-rock ice cliffs and cool polar light.
+
+Relay towers use concentric energy rings and a floating core so their capture state reads instantly in every biome. The map-specific tactical map repeats the major terrain cue without reducing unit contrast.
 
 ## Lighting and effects
 
@@ -29,7 +35,7 @@ Milestone 3.5 adds weathered faction armor albedos, a tactile coastal ground sur
 
 ## Camera and quality
 
-The default perspective is a comfortable isometric overview with smooth target and zoom interpolation. Wheel/pinch zoom, touch/alternate-drag pan, keyboard rotation, reset, and focus-selection controls are supported. High quality favors antialiasing, richer formations, vegetation and periodically refreshed soft shadows. Balanced quality reduces formation complexity, wheels, missiles, vegetation, pixel ratio and shadows while retaining every gameplay silhouette and effect category. Deterministic formation offsets keep friendlies from occupying exactly the same screen-space position.
+The default perspective is a comfortable isometric overview with smooth target, zoom and rotation interpolation. Wheel/pinch zoom, touch/middle-mouse/alternate-drag pan, keyboard rotation, reset, fit-to-battlefield, focus-selection and focus-objective controls are supported. Camera limits tighten as the view pulls back and adapt to portrait viewports; the maximum overview is centered so the full playable field remains visible over authored terrain. High quality favors antialiasing, richer formations, vegetation and periodically refreshed soft shadows. Balanced quality reduces formation complexity, wheels, missiles, vegetation, pixel ratio and shadows while retaining every gameplay silhouette and effect category. Deterministic formation offsets keep friendlies from occupying exactly the same screen-space position.
 
 ## Guardrails
 

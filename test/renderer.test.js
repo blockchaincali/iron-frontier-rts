@@ -7,14 +7,26 @@ const {Game}=require('../src/engine');
 
 const renderer=fs.readFileSync(path.join(__dirname,'..','public','3d.js'),'utf8');
 const gameUi=fs.readFileSync(path.join(__dirname,'..','public','game.js'),'utf8');
+const maps=require('../public/maps');
 
 function match(){const g=new Game({mode:'solo',roomCode:'VFX3'});g.addParticipant('p0','Commander',0);g.addParticipant('bot','Rival AI',1,true);g.start();return g}
 
 test('3D renderer exposes camera, quality, inspection and telemetry controls',()=>{
- for(const api of ['focusSelection','resetCamera','inspect','screenPoint','metrics','quality'])assert.match(renderer,new RegExp(`${api}[:(]`));
+ for(const api of ['focusSelection','focusObjective','resetCamera','fitBattlefield','viewportCoverage','inspect','screenPoint','metrics','quality'])assert.match(renderer,new RegExp(`${api}[:(]`));
  assert.match(renderer,/webglcontextlost/);
  assert.match(renderer,/InstancedMesh/);
  assert.match(renderer,/powerPreference:'high-performance'/);
+});
+
+test('map definitions drive three environments and bounded extended terrain',()=>{
+ assert.deepEqual(maps.ids,['coastal','desert','frozen']);
+ for(const id of maps.ids){const map=maps.get(id);assert.equal(map.id,id);assert.ok(map.name&&map.description&&Number.isInteger(map.seed))}
+ assert.match(renderer,/geo\('plane',220,180\)/);
+ assert.match(renderer,/desiredRange-delta\*17,11,58/);
+ assert.match(renderer,/cameraBounds\(\)/);
+ assert.match(renderer,/addBiomeBoundary\(\)/);
+ assert.match(gameUi,/name="battlefield"/);
+ assert.match(gameUi,/terrainSeed/);
 });
 
 test('3D art uses local original assets and reusable geometry without remote requests',()=>{
@@ -38,6 +50,7 @@ test('2D fallback and contextual input bridge remain wired',()=>{
  assert.match(gameUi,/applyViewMode\(\)/);
  assert.match(gameUi,/handleWorldTap/);
  assert.match(gameUi,/active\(\)\)\{drawMinimap\(\);return\}/,'3D mode must continue painting the tactical minimap');
+ assert.match(gameUi,/data\.phase==='lobby'&&rosterChanged/,'multiplayer lobby must rerender when its authoritative roster changes');
 });
 
 test('high quality mode throttles shadow refresh and caps transient effect families',()=>{
