@@ -32,7 +32,7 @@ function register(ws,room,p,existing=false){
 function create(ws,msg){
  if(ws.room)return send(ws,{type:'error',message:'Already in a room'});
  let code=newCode();while(rooms.has(code))code=newCode();
- const mode=msg.mode==='pvp'?'pvp':'solo';const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,training:mode==='solo'&&msg.training===true});
+ const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true)});
  const room={code,game,hostId:null,sockets:new Map(),lastActivity:Date.now()};rooms.set(code,room);
  const id=uid(),name=String(msg.name||'Commander').trim().slice(0,18)||'Commander';game.addParticipant(id,name,0,false);room.hostId=id;
  if(mode==='solo')game.addParticipant(uid(),'CRIMSON BOT',1,true);
@@ -56,6 +56,9 @@ function action(ws,msg){
  switch(msg.type){
   case 'start':if(room.hostId!==player.id)return send(ws,{type:'error',message:'Only host can start'});outcome=game.start()?{ok:true}:{ok:false,reason:'Waiting for opposing commander'};break;
   case 'build':outcome=game.spawn(player.team,String(msg.unitType||''));break;
+  case 'construct':outcome=game.constructionSite(player.team,String(msg.structureType||''),msg.x,msg.y,msg.builderIds);break;
+  case 'produce':outcome=game.produce(player.team,String(msg.structureId||''),String(msg.unitType||''));break;
+  case 'upgrade':outcome=game.upgradeStructure(player.team,String(msg.structureId||''));break;
   case 'command':outcome=game.command(player.team,msg.unitIds,msg.action,msg.x,msg.y,msg.targetId);break;
   case 'ability':outcome=game.orbital(player.team,msg.x,msg.y);break;
   case 'trainingComplete':outcome=game.completeTraining(player.team);break;
@@ -68,7 +71,8 @@ function action(ws,msg){
   default:return;
  }
  if(!outcome.ok)send(ws,{type:'notice',message:outcome.reason||'Not available'});
- else if(msg.type==='build')send(ws,{type:'notice',message:'Unit deployed: '+String(msg.unitType).toUpperCase()});
+  else if(msg.type==='build')send(ws,{type:'notice',message:'Unit deployed: '+String(msg.unitType).toUpperCase()});
+  else if(msg.type==='construct')send(ws,{type:'notice',message:'Construction team dispatched'});
  broadcastState(room)
 }
 wss.on('connection',ws=>{

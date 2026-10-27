@@ -1,5 +1,17 @@
 # IRON FRONTIER 90-second demo script
 
+## Operation Safe Haven
+
+1. Choose **Operation Safe Haven** and frame the objective: protect a fictional Nigerian community, not simply destroy an opposing base.
+2. Select the engineer and place a barricade, watchtower, field clinic, and vehicle workshop. Point out the clear/blocked placement preview and protected preparation phase.
+3. Select the completed workshop, produce a protected patrol vehicle, and upgrade the watchtower.
+4. Defend the clinic, market, and community centre while showing tower fire, clinic healing, vehicle movement, explosions, and the tactical minimap.
+5. Secure the eastern evacuation route, survive the final assault, and close on the restored-safety victory result.
+
+Recorded evidence: `artifacts/safe-haven/operation-safe-haven-demo.webm`.
+
+## Competition overview
+
 1. Open on the homepage and introduce the three battlegrounds and Recruit difficulty.
 2. Start Guided Tutorial; recruit a rifle squad, select it, move, focus an enemy, and capture the nearest relay.
 3. Show the 3D/2D switch, tactical minimap, smooth zoom, objective focus, and fit-to-battlefield controls.

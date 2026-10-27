@@ -61,7 +61,7 @@ async function run(){
   const steadyMetrics=await performanceSample(page);
   await page.screenshot({path:path.join(output,baseline?'before-desktop-3d.png':'after-desktop-3d.png'),fullPage:false});
   if(!baseline){
-   for(let i=0;i<8;i++){const recruit=page.locator('[data-build="rifle"]');if(await recruit.isEnabled())await recruit.click();await page.waitForTimeout(110)}
+   for(let i=0;i<8;i++){const recruit=page.locator('[data-build="rifle"]'),before=await page.evaluate(()=>window.IronBridge.snapshot().units.length);if(await recruit.isEnabled()){await recruit.click();await page.waitForFunction(count=>window.IronBridge.snapshot().units.length>count,before,{timeout:3000})}}
    await page.waitForTimeout(650);await page.locator('#select-all').click();
    const selectedCount=await page.evaluate(()=>window.IronBridge.selected().size),startUnits=await page.evaluate(()=>window.IronBridge.snapshot().units.length);
    if(selectedCount<8)failures.push(`crowded selection unexpectedly small: ${selectedCount}`);

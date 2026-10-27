@@ -67,6 +67,10 @@ test('renderer batches detailed entities, pools particles, and disposes lifecycl
  assert.doesNotMatch(renderer,/new THREE\.PointLight/,'transient explosions must not recompile lighting programs');
  assert.match(gameUi,/t-lastDraw>=200/,'the hidden 2D minimap must be throttled while 3D is active');
 });
+test('Safe Haven renderer keeps construction and town scenery in the optimized entity lifecycle',()=>{
+ assert.match(renderer,/structureModel\(s\)/);assert.match(renderer,/facilityModel\(f\)/);assert.match(renderer,/addSafeHavenTown/);assert.match(renderer,/InstancedMesh/);assert.match(renderer,/syncPlacementGhost/);assert.match(renderer,/\['unit','base','structure','facility','node'\]/);
+ assert.match(gameUi,/data-structure/);assert.match(gameUi,/placementValid/);assert.match(gameUi,/data-safe-build/);assert.match(gameUi,/landscape-suggestion/);
+});
 
 test('projectile snapshots identify their source for authoritative recoil and muzzle VFX',()=>{
  const g=match(),source=g.units.find(unit=>unit.team===0),target=g.units.find(unit=>unit.team===1);

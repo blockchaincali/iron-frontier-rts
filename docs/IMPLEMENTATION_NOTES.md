@@ -1,5 +1,12 @@
 # IRON FRONTIER implementation notes
 
+## Operation Safe Haven - civilian defense mission
+
+- Added one solo mission in a fictional Nigerian town without changing the standard solo or multiplayer map catalog. A protected preparation phase transitions through civilian-facility defense, evacuation-route control, and a final assault with explicit win/loss rules.
+- Added server-authoritative engineer construction, placement/collision/resource checks, build timers, structure health, one-level upgrades, workshop production, and protected patrol vehicles. Barricades block movement, watchtowers fire, clinics heal, and workshops produce units through the existing snapshot protocol.
+- Added an original instanced town environment, civilian facilities, response-force vehicles, build previews, structure selection, mission guidance, compact landscape controls, portrait rotation guidance, minimap coverage, and matching 2D rendering. Shared geometry/materials and bounded effects preserve the optimized renderer lifecycle.
+- Added engine, room/protocol, renderer, and real-browser mission regression coverage. `npm run qa:safe-haven` captures desktop and landscape-mobile evidence plus a short gameplay demonstration. Detailed controls, provenance, measurements, and limitations are in `SAFE_HAVEN_MISSION.md`.
+
 ## Release stabilization - renderer lifecycle and protected training
 
 - Batched static submeshes by material, pooled spark/smoke particles, removed shader-churning transient lights, throttled the tactical minimap, and made HUD rendering state-differential. Renderer teardown now disposes merged buffers and mount-owned resources.

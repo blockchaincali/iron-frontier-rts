@@ -38,3 +38,7 @@ test('Solo tutorial protection is authoritative and ends only on trainee command
  const ws=wss.connect();ws.receive({type:'create',mode:'solo',difficulty:'recruit',training:true,name:'Trainee'});const joined=ws.last('joined'),room=rooms.get(joined.code);assert.equal(room.game.training,true);room.game.step(5);assert.equal(room.game.time,0);assert.equal(ws.last('state').training,true);
  ws.receive({type:'trainingComplete'});assert.equal(room.game.training,false);assert.equal(ws.last('state').training,false);
 });
+test('Safe Haven mission identity and construction commands remain server authoritative',()=>{
+ const ws=wss.connect();ws.receive({type:'create',mode:'solo',difficulty:'recruit',missionId:'safe-haven',mapId:'frozen',name:'Coordinator'});const joined=ws.last('joined'),room=rooms.get(joined.code),engineer=room.game.units.find(unit=>unit.type==='engineer');assert.equal(room.game.missionId,'safe-haven');assert.equal(room.game.mapId,'safe-haven');assert.equal(room.game.training,true);
+ ws.receive({type:'construct',structureType:'watchtower',x:420,y:360,builderIds:['forged']});assert.match(ws.last('notice').message,/engineer/i);ws.receive({type:'construct',structureType:'barricade',x:420,y:360,builderIds:[engineer.id]});assert.equal(room.game.structures.length,1);assert.equal(room.game.structures[0].team,0);
+});

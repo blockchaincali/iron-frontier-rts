@@ -10,7 +10,8 @@
     "qa:3d": "node scripts/visual-3d-smoke.js",
     "qa:world": "node scripts/world-3d-smoke.js",
     "qa:final": "node scripts/final-competition-smoke.js",
-    "qa:performance": "node scripts/release-performance-profile.js"
+    "qa:performance": "node scripts/release-performance-profile.js",
+    "qa:safe-haven": "node scripts/safe-haven-smoke.js"
   },
   "engines": {
     "node": ">=20"

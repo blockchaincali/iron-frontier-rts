@@ -28,6 +28,8 @@ All meshes, structures, environment dressing, road markings, procedural road tex
 
 Milestone 3.6 adds only original code-authored environment forms: instanced desert mesas and cacti, frozen cliffs/river/ice marks, expanded coastal water and shoreline, biome vegetation, deterministic scenery placement, atmosphere palettes, and CSS-drawn map preview cards. No third-party map, texture, model, or preview asset was introduced.
 
+Operation Safe Haven adds only original code-authored assets: the engineer crane vehicle, protected patrol vehicle, barricade, watchtower, vehicle workshop, field clinic, civilian facilities, residential compounds, market stalls, elevated water tanks, road dressing, and town vegetation. The assets are procedural Three.js assemblies built from shared geometry and materials in `public/3d.js`; they introduce no third-party model, texture, logo, audio, runtime request, or copied reference-game design. The fictional setting is a composite inspired by broad Nigerian built-environment cues and does not reproduce a specific town or real incident.
+
 The renderer uses the repository's installed `three` package, served locally as `/vendor/three.module.js`. Three.js is distributed under the MIT License; its license is included at `node_modules/three/LICENSE` after dependency installation.
 
 ## Retired project artwork
@@ -39,3 +41,5 @@ The renderer uses the repository's installed `three` package, served locally as 
 Final-quality for this gate: the faction surface texture set, terrain surface, lighting treatment, selection/badge language, impact sprite, gameplay-driven VFX sequence, and authored environment composition.
 
 Production-interim rather than final hero art: infantry, tanks, rocket batteries, HQs, turrets, vegetation, and props are detailed custom procedural assemblies. They now have readable armor, weapons, tracks, panels, mechanical components, faction silhouettes, motion, recoil, and PBR treatment, but they are not UV-authored/skinned GLB models. In particular, infantry lacks a skeletal animation rig and the vegetation retains a deliberately stylized low-poly silhouette. The required GLB replacement workflow is specified in `ASSET_PRODUCTION_WORKFLOW.md`; these meshes must not be represented as final cinematic character assets.
+
+The Safe Haven engineer, patrol vehicle, town structures, and civilian buildings share that production-interim procedural classification. They are original, optimized, readable gameplay assets, but not UV-authored hero GLBs.
