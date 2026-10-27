@@ -10,6 +10,7 @@ const UNITS={
 const STRUCTURES={
  barricade:{label:'Protective Barricade',cost:55,buildTime:4,hp:520,radius:34,role:'Blocks hostile vehicles and protects a lane'},
  watchtower:{label:'Defensive Watchtower',cost:110,buildTime:7,hp:430,radius:31,range:245,damage:22,fireRate:.78,role:'Automatically engages nearby threats'},
+ barracks:{label:'Response Barracks',cost:145,buildTime:8,hp:620,radius:43,role:'Trains community response infantry'},
  workshop:{label:'Vehicle Workshop',cost:180,buildTime:10,hp:720,radius:48,role:'Produces protected patrol vehicles'},
  clinic:{label:'Field Clinic',cost:135,buildTime:8,hp:560,radius:40,heal:9,role:'Restores nearby friendly units'}
 };

@@ -33,7 +33,7 @@ test('health and static routes return expected content types',async()=>{
  const health=await fetch(`${origin}/healthz`);
  assert.equal(health.status,200);
  assert.match(health.headers.get('content-type'),/^application\/json/);
- assert.deepEqual(await health.json(),{status:'ok',game:'Iron Frontier',rooms:0});
+ assert.deepEqual(await health.json(),{status:'ok',game:'HOMESTAND',rooms:0});
 
  const expected={
   '/':'text/html',

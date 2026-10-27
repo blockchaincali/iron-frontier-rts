@@ -58,6 +58,7 @@ function action(ws,msg){
   case 'build':outcome=game.spawn(player.team,String(msg.unitType||''));break;
   case 'construct':outcome=game.constructionSite(player.team,String(msg.structureType||''),msg.x,msg.y,msg.builderIds);break;
   case 'produce':outcome=game.produce(player.team,String(msg.structureId||''),String(msg.unitType||''));break;
+  case 'repair':outcome=game.repairStructure(player.team,String(msg.structureId||''),msg.builderIds);break;
   case 'upgrade':outcome=game.upgradeStructure(player.team,String(msg.structureId||''));break;
   case 'command':outcome=game.command(player.team,msg.unitIds,msg.action,msg.x,msg.y,msg.targetId);break;
   case 'ability':outcome=game.orbital(player.team,msg.x,msg.y);break;
