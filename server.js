@@ -12,7 +12,7 @@ const contentType={'.html':'text/html; charset=utf-8','.css':'text/css; charset=
 const server=http.createServer((req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname;
  if(pathname==='/vendor/three.module.js'||pathname==='/vendor/three.core.js'||pathname==='/vendor/BufferGeometryUtils.js'){const threeFile=pathname.endsWith('BufferGeometryUtils.js')?path.join(__dirname,'node_modules','three','examples','jsm','utils','BufferGeometryUtils.js'):path.join(__dirname,'node_modules','three','build',pathname.endsWith('three.core.js')?'three.core.js':'three.module.js');return fs.readFile(threeFile,(err,data)=>{if(err){res.writeHead(503);return res.end('3D library unavailable')}res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'public, max-age=604800'});res.end(data)})}
- if(pathname==='/healthz'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({status:'ok',game:'Iron Frontier',rooms:rooms.size}))}
+ if(pathname==='/healthz'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({status:'ok',game:'HOMESTAND',rooms:rooms.size}))}
  const file=staticFiles[pathname];if(!file){res.writeHead(404);return res.end('Not found')}
  const filePath=path.join(__dirname,'public',file);
  fs.readFile(filePath,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found')}res.writeHead(200,{'Content-Type':contentType[path.extname(file)]||'application/octet-stream','Cache-Control':'public,max-age=60'});res.end(data)})
@@ -96,5 +96,5 @@ const loop=setInterval(()=>{
  const age=Date.now();for(const [code,room] of rooms){if(![...room.sockets.values()].some(ws=>ws.readyState===WebSocket.OPEN)&&age-room.lastActivity>5*60*1000)rooms.delete(code)}
 },50);loop.unref();
 const keepalive=setInterval(()=>{for(const ws of wss.clients){if(ws.alive===false){ws.terminate();continue}ws.alive=false;ws.ping()}},25000);keepalive.unref();
-if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log(`IRON FRONTIER listening on ${PORT}`));
+if(require.main===module)server.listen(PORT,'0.0.0.0',()=>console.log(`HOMESTAND listening on ${PORT}`));
 module.exports={server,rooms};
