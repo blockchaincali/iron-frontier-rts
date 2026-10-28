@@ -13,7 +13,9 @@
     "qa:performance": "node scripts/release-performance-profile.js",
     "qa:safe-haven": "node scripts/safe-haven-smoke.js",
     "qa:expansion": "node scripts/world-expansion-smoke.js",
-    "qa:mobile": "node scripts/mobile-layout-smoke.js"
+    "qa:mobile": "node scripts/mobile-layout-smoke.js",
+    "qa:immersive": "node scripts/immersive-capture.js",
+    "render:poster": "node scripts/render-poster.js"
   },
   "engines": {
     "node": ">=20"

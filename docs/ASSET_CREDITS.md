@@ -43,3 +43,16 @@ Final-quality for this gate: the faction surface texture set, terrain surface, l
 Production-interim rather than final hero art: infantry, tanks, rocket batteries, HQs, turrets, vegetation, and props are detailed custom procedural assemblies. They now have readable armor, weapons, tracks, panels, mechanical components, faction silhouettes, motion, recoil, and PBR treatment, but they are not UV-authored/skinned GLB models. In particular, infantry lacks a skeletal animation rig and the vegetation retains a deliberately stylized low-poly silhouette. The required GLB replacement workflow is specified in `ASSET_PRODUCTION_WORKFLOW.md`; these meshes must not be represented as final cinematic character assets.
 
 The Safe Haven engineer, patrol vehicle, town structures, and civilian buildings share that production-interim procedural classification. They are original, optimized, readable gameplay assets, but not UV-authored hero GLBs.
+
+## Immersive v2 (HOMESTAND) assets
+
+No external models, textures, fonts, audio or libraries were added. Every new visual is code-authored in this repository:
+
+| Asset | Source | Size / runtime impact |
+| --- | --- | --- |
+| `public/town.js` — Kachia town kit: walled compounds, hip-roof houses, water tanks, market stalls, umbrellas, kiosk containers, clinic, school, community centre, checkpoint, staging camp, power lines, streetlights, billboards, trees, inselbergs, danfo buses, kekes, cars, convoy vehicles, mission structures | Original primitives, vertex-coloured and merged per material | ~35 KB source; the whole district renders in ~5 draw calls |
+| Painted Safe Haven ground (laterite and asphalt roads, yards, field, evacuation arrows) | Generated at runtime on a canvas from the shared layout in `public/maps.js` | 1024–2048 px texture, cached per session |
+| `public/assets/homestand-poster.jpg` | Rendered from the in-engine homepage scene with `npm run render:poster` | 2400 x 1350, ~520 KB, preloaded |
+| Interface icons (inline SVG paths in `public/game.js`) and the HOMESTAND emblem | Original | Inline, no requests |
+
+The legacy `iron-frontier-hero.webp` is still served for compatibility but is no longer referenced by the interface.

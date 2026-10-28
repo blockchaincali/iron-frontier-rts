@@ -1,5 +1,5 @@
 'use strict';
-const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+const http=require('node:http'),fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),zlib=require('node:zlib');
 const {WebSocket,WebSocketServer}=require('ws');
 const {Game}=require('./src/engine');
 const {get:getMap}=require('./public/maps');
@@ -7,15 +7,27 @@ const PORT=Number(process.env.PORT||3000),rooms=new Map(),STEP=0.05;
 const uid=()=>crypto.randomBytes(9).toString('hex');
 const newCode=()=>Array.from(crypto.randomBytes(4),n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
 const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data))};
-const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
+const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/home.js':'home.js','/town.js':'town.js','/platform.js':'platform.js','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/homestand-poster.jpg':'assets/homestand-poster.jpg','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
+// Browsers receive the minified Three.js build; the stable /vendor/three.module.js URL keeps the import map unchanged.
+const vendorFiles={'/vendor/three.module.js':['three','build','three.module.min.js'],'/vendor/three.core.min.js':['three','build','three.core.min.js'],'/vendor/three.core.js':['three','build','three.core.min.js'],'/vendor/BufferGeometryUtils.js':['three','examples','jsm','utils','BufferGeometryUtils.js']};
+const compressible=/\.(html|css|js)$/,responseCache=new Map();
+function serveFile(req,res,filePath,cacheControl){
+ fs.stat(filePath,(statError,stat)=>{if(statError){res.writeHead(404);return res.end('Not found')}
+  const type=contentType[path.extname(filePath)]||'application/octet-stream',etag='"'+stat.size.toString(36)+'-'+Math.floor(stat.mtimeMs).toString(36)+'"',gzip=compressible.test(filePath)&&/\bgzip\b/.test(req.headers['accept-encoding']||'');
+  const headers={'Content-Type':type,'Cache-Control':cacheControl,ETag:etag,Vary:'Accept-Encoding'};
+  if(req.headers['if-none-match']===etag){res.writeHead(304,headers);return res.end()}
+  const key=filePath+(gzip?':gz':''),cached=responseCache.get(key),finish=body=>{if(gzip)headers['Content-Encoding']='gzip';headers['Content-Length']=body.length;res.writeHead(200,headers);res.end(req.method==='HEAD'?undefined:body)};
+  if(cached?.etag===etag)return finish(cached.body);
+  fs.readFile(filePath,(readError,data)=>{if(readError){res.writeHead(404);return res.end('Not found')}const body=gzip?zlib.gzipSync(data,{level:9}):data;responseCache.set(key,{etag,body});finish(body)})
+ })
+}
 const contentType={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp'};
 const server=http.createServer((req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname;
- if(pathname==='/vendor/three.module.js'||pathname==='/vendor/three.core.js'||pathname==='/vendor/BufferGeometryUtils.js'){const threeFile=pathname.endsWith('BufferGeometryUtils.js')?path.join(__dirname,'node_modules','three','examples','jsm','utils','BufferGeometryUtils.js'):path.join(__dirname,'node_modules','three','build',pathname.endsWith('three.core.js')?'three.core.js':'three.module.js');return fs.readFile(threeFile,(err,data)=>{if(err){res.writeHead(503);return res.end('3D library unavailable')}res.writeHead(200,{'Content-Type':'text/javascript; charset=utf-8','Cache-Control':'public, max-age=604800'});res.end(data)})}
+ if(vendorFiles[pathname])return serveFile(req,res,path.join(__dirname,'node_modules',...vendorFiles[pathname]),'public, max-age=604800');
  if(pathname==='/healthz'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({status:'ok',game:'HOMESTAND',rooms:rooms.size}))}
  const file=staticFiles[pathname];if(!file){res.writeHead(404);return res.end('Not found')}
- const filePath=path.join(__dirname,'public',file);
- fs.readFile(filePath,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found')}res.writeHead(200,{'Content-Type':contentType[path.extname(file)]||'application/octet-stream','Cache-Control':'public,max-age=60'});res.end(data)})
+ serveFile(req,res,path.join(__dirname,'public',file),'public,max-age=60')
 });
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:8192});
 const participants=room=>room.game.participants;
@@ -32,7 +44,7 @@ function register(ws,room,p,existing=false){
 function create(ws,msg){
  if(ws.room)return send(ws,{type:'error',message:'Already in a room'});
  let code=newCode();while(rooms.has(code))code=newCode();
- const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true)});
+ const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true),guided:msg.guided===true});
  const room={code,game,hostId:null,sockets:new Map(),lastActivity:Date.now()};rooms.set(code,room);
  const id=uid(),name=String(msg.name||'Commander').trim().slice(0,18)||'Commander';game.addParticipant(id,name,0,false);room.hostId=id;
  if(mode==='solo')game.addParticipant(uid(),'CRIMSON BOT',1,true);
