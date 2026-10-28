@@ -1,12 +1,6 @@
-/* IRON FRONTIER v0.2 — 3D interface and difficulty selection */
-.arena-frame.using-3d{background:#142d37;box-shadow:inset 0 0 0 1px #8defff22,0 18px 46px #0007}
-.arena-frame.using-3d:after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 48%,transparent 50%,#06141d22 76%,#03101888 100%);border-radius:inherit}
+/* HOMESTAND 3D battlefield layer */
+.arena-frame.using-3d{background:#142d37}
+.arena-frame.using-3d:after{content:'';position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 48%,transparent 58%,rgba(6,20,29,.18) 80%,rgba(3,16,24,.55) 100%)}
 #world3d{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:crosshair;display:block}
 .arena-frame.using-3d #world{visibility:hidden}
-.arena-legend{z-index:3}
-.view-controls{grid-template-columns:minmax(0,1fr) repeat(5,auto)!important}
-#quality-mode{min-width:66px;color:#a8f4ec;border-color:#3b716e}
-.difficulty-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-.difficulty-row label{margin:0;display:flex;align-items:center;gap:6px;color:#cce3e4;font-size:12px}
-.difficulty-row select{background:#0b2836;color:#f5ffff;border:1px solid #4d7d89;padding:11px;border-radius:9px;font:inherit;min-width:160px}
-@media(max-width:760px){.view-controls{grid-template-columns:minmax(0,1fr) repeat(5,36px)!important}.view-controls .btn{min-width:0;padding:7px 3px!important}#quality-mode{min-width:0;font-size:7px!important}.arena-frame.using-3d:after{background:radial-gradient(ellipse at 50% 48%,transparent 62%,#03101877 100%)}}
+#quality-mode{color:#a8f4ec}
