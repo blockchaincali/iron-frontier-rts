@@ -32,7 +32,7 @@ async function prepare(context,label){
  await page.goto(origin,{waitUntil:'networkidle'});
  await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('iron-frontier-view','3d');localStorage.setItem('iron-frontier-tutorial-complete','1');localStorage.setItem('iron-frontier-name','Visual QA');});
  await page.reload({waitUntil:'networkidle'});
- await page.locator('#solo').click();
+ await page.locator('#open-operations').click();await page.locator('#solo').click();
  await page.locator('#world3d').waitFor({state:'visible',timeout:15000});
  await page.waitForTimeout(2500);
  const webgl=await page.evaluate(()=>{const canvas=document.querySelector('#world3d');const gl=canvas?.getContext('webgl2')||canvas?.getContext('webgl');if(!gl)return null;const ext=gl.getExtension('WEBGL_debug_renderer_info');return {version:gl.getParameter(gl.VERSION),renderer:ext?gl.getParameter(ext.UNMASKED_RENDERER_WEBGL):gl.getParameter(gl.RENDERER)};});

@@ -30,45 +30,49 @@ async function setupPage(context,label){
  return page;
 }
 
-async function clickBattlefield(page,xRatio,yRatio){
- const box=await page.locator('#world').boundingBox();
- if(!box)throw new Error('Battlefield canvas is not visible');
- await page.mouse.click(box.x+box.width*xRatio,box.y+box.height*yRatio);
+async function clickWorld(page,x,y){
+ const point=await page.evaluate(({x,y})=>window.IronBridge.project(x,y),{x,y});
+ if(!point)throw new Error('Battlefield projection unavailable');
+ await page.mouse.click(point.x,point.y);
 }
+const title=(page,text,timeout=15000)=>page.locator('#mission-title').filter({hasText:text}).waitFor({timeout});
 
-async function clickFriendlyUnit(page){
- const unit=await page.evaluate(()=>{const team=window.IronBridge.team();const units=window.IronBridge.snapshot().units.filter(value=>value.team===team);return units.at(-1)||units[0]});
- if(!unit)throw new Error('No friendly unit was available for tutorial selection');
- await clickBattlefield(page,unit.x/1600,unit.y/900);
- return unit;
-}
-
+// Field training is the single onboarding path: Operation Safe Haven, played with real controls.
 async function runDesktop(browser){
  const context=await browser.newContext({viewport:{width:1366,height:768},deviceScaleFactor:1});
  const page=await setupPage(context,'desktop');
  await page.screenshot({path:path.join(output,'home-desktop.png'),fullPage:true});
  await assertNoOverflow(page,'desktop home');
- await page.locator('#tutorial').click();
- await page.locator('#mission-title').filter({hasText:'Build your squad'}).waitFor();
- const protectedStart=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp)}});
+ await page.locator('#open-operations').click();await page.locator('#tutorial').click();
+ await title(page,'Explore Kachia');
+ const protectedStart=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,stage:state.mission.stage,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp)}});
  await page.waitForTimeout(2200);
- const protectedLater=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp),enemyRelays:state.nodes.filter(node=>node.owner===1).length}});
- if(!protectedStart.training||!protectedLater.training||protectedLater.time!==protectedStart.time||protectedLater.enemyRelays||JSON.stringify(protectedLater.hp)!==JSON.stringify(protectedStart.hp))throw new Error(`Tutorial protection failed: ${JSON.stringify({protectedStart,protectedLater})}`);
+ const protectedLater=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,stage:state.mission.stage,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp),hostiles:state.units.filter(unit=>unit.team===1).length}});
+ if(!protectedStart.training||protectedStart.stage!=='tutorial'||!protectedLater.training||protectedLater.time!==protectedStart.time||protectedLater.hostiles||JSON.stringify(protectedLater.hp)!==JSON.stringify(protectedStart.hp))throw new Error(`Tutorial protection failed: ${JSON.stringify({protectedStart,protectedLater})}`);
  await page.screenshot({path:path.join(output,'tutorial-desktop.png'),fullPage:true});
- await page.locator('[data-build="rifle"]').click();
- await page.locator('#mission-title').filter({hasText:'Select a unit'}).waitFor({timeout:5000});
- const unit=await clickFriendlyUnit(page);
- await page.locator('#mission-title').filter({hasText:'Move into position'}).waitFor();
- await clickBattlefield(page,Math.min(.46,(unit.x+170)/1600),Math.max(.2,(unit.y-80)/900));
- await page.locator('#mission-title').filter({hasText:'Advance and engage'}).waitFor({timeout:5000});
- await page.locator('[data-action="attackmove"]').click();
- await clickBattlefield(page,.5,.5);
- await page.locator('#mission-title').filter({hasText:'Capture a relay'}).waitFor({timeout:5000});
- await clickBattlefield(page,.5,.5);
- await page.locator('#mission-title').filter({hasText:'How to win'}).waitFor({timeout:35000});
+ await page.locator('#zoom-in').click();
+ await title(page,'Select your engineer');
+ const engineer=await page.evaluate(()=>window.IronBridge.snapshot().units.find(unit=>unit.type==='engineer'));
+ await clickWorld(page,engineer.x,engineer.y);
+ await title(page,'Build a barracks');
+ if(!await page.locator('[data-structure="barracks"]').isVisible())await page.locator('#build-toggle').click();
+ await page.locator('[data-structure="barracks"]').click();await clickWorld(page,430,560);await page.locator('#confirm-placement:not([disabled])').click();
+ await page.screenshot({path:path.join(output,'tutorial-construction-desktop.png'),fullPage:true});
+ await title(page,'Train a response squad',25000);
+ const barracks=await page.evaluate(()=>window.IronBridge.snapshot().structures.find(value=>value.type==='barracks'));
+ await clickWorld(page,barracks.x,barracks.y);await page.locator('#produce-infantry:not([disabled])').click();
+ await title(page,'Move into position',15000);
+ await page.locator('#select-all').click();await page.locator('[data-action="move"]').click();await clickWorld(page,860,600);
+ await title(page,'Collect field supplies');
+ const cache=await page.evaluate(()=>window.IronBridge.snapshot().caches.find(value=>value.claimedBy===null&&value.reward==='credits'));
+ await page.locator('#select-all').click();await page.locator('[data-action="move"]').click();await clickWorld(page,cache.x,cache.y);
+ await title(page,'Prepare, then begin',20000);
+ await page.waitForFunction(()=>window.IronBridge.snapshot().mission.stage==='prepare');
+ await page.locator('#begin-defense:not([disabled])').click();
+ await title(page,'Repel the first attack');
+ await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.mission.stage==='protect'&&state.units.some(unit=>unit.team===1)});
  await page.locator('#tutorial-ready').click();
- await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.time>0},{timeout:5000});
- await page.getByText('Training complete — the frontier is yours',{exact:true}).waitFor();
+ await page.getByText('Field training complete — Kachia is counting on you',{exact:true}).waitFor();
  await page.screenshot({path:path.join(output,'battle-desktop.png'),fullPage:true});
  await assertNoOverflow(page,'desktop battle');
  await context.close();
@@ -79,12 +83,12 @@ async function runMobile(browser){
  const page=await setupPage(context,'mobile');
  await page.screenshot({path:path.join(output,'home-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile home');
- await page.locator('#tutorial').tap();
- await page.locator('#mission-title').filter({hasText:'Build your squad'}).waitFor();
+ await page.locator('#open-operations').tap();await page.locator('#tutorial').tap();
+ await title(page,'Explore Kachia');
  await page.screenshot({path:path.join(output,'tutorial-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile tutorial');
  await page.locator('#tutorial-skip').tap();
- await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.time>0},{timeout:5000});
+ await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.mission.stage==='prepare'&&[...window.IronBridge.selected()].length>0},{timeout:5000});
  await page.waitForTimeout(800);
  await page.screenshot({path:path.join(output,'battle-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile battle');
@@ -95,5 +99,5 @@ async function runMobile(browser){
  const browser=await chromium.launch({headless:true,executablePath,args:['--disable-gpu','--no-sandbox']});
  try{await runDesktop(browser);await runMobile(browser)}finally{await browser.close()}
  if(failures.length)throw new Error(failures.join('\n'));
- console.log('UX smoke passed: tutorial flow, console/network checks, screenshots, and 360px overflow validation.');
+ console.log('UX smoke passed: eight-step guided field training, protection, console/network checks, screenshots, and 360px overflow validation.');
 })().catch(error=>{console.error(error);process.exitCode=1});

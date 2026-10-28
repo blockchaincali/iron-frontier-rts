@@ -40,7 +40,7 @@ async function run(){
  try{
   await page.goto(origin,{waitUntil:'networkidle'});
   await page.evaluate(()=>{localStorage.clear();sessionStorage.clear();localStorage.setItem('iron-frontier-view','3d');localStorage.setItem('iron-frontier-tutorial-complete','1');localStorage.setItem('iron-frontier-name','Performance QA')});
-  await page.reload({waitUntil:'networkidle'});await page.locator('#solo').click();await page.locator('#world3d').waitFor({state:'visible',timeout:15000});await page.waitForTimeout(2500);
+  await page.reload({waitUntil:'networkidle'});await page.locator('#open-operations').click();await page.locator('#solo').click();await page.locator('#world3d').waitFor({state:'visible',timeout:15000});await page.waitForTimeout(2500);
   await page.locator('#select-all').click();
   const started=Date.now(),finish=started+durationSeconds*1000;let nextRecruit=0,nextCommand=0,nextOrbital=45;
   while(Date.now()<finish){
