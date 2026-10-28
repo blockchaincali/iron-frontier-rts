@@ -8,7 +8,7 @@ const teamName=t=>t===0?'AZURE UNION':'CRIMSON LEGION';
 class Game {
  constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null}={}){
   this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.mapId=this.missionId||(['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
-  this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.structures=[];this.facilities=[];this.projectiles=[];this.blasts=[];this.participants=[];this.mission=null;
+  this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.structures=[];this.facilities=[];this.caches=[];this.projectiles=[];this.blasts=[];this.participants=[];this.mission=null;
   this.win=null;this.aiClock=0;this.incomeClock=0;this.snapshotClock=0;this.round=0;
   this.resetWorld();
  }
@@ -16,28 +16,29 @@ class Game {
  event(text,team=null){this.events.push({id:this.eventId++,text,team});if(this.events.length>12)this.events.shift()}
  addParticipant(id,name,team,isBot=false){if(this.phase!=='lobby')return false;if(this.participants.some(p=>p.team===team))return false;this.participants.push({id,name:name.slice(0,18),team,bot:isBot,connected:true});return true}
  resetWorld(){
-  this.time=0;this.aiClock=0;this.incomeClock=0;this.seq=1;this.eventId=1;this.units=[];this.bases=[];this.structures=[];this.facilities=[];this.projectiles=[];this.blasts=[];this.events=[];this.win=null;
+  this.time=0;this.aiClock=0;this.incomeClock=0;this.seq=1;this.eventId=1;this.units=[];this.bases=[];this.structures=[];this.facilities=[];this.caches=[];this.projectiles=[];this.blasts=[];this.events=[];this.win=null;
   const recruit=this.mode==='solo'&&this.difficulty==='recruit';
   this.teams=[{credits:recruit?620:START_CREDITS,energy:130,points:0,kills:0,powerCooldown:0},{credits:recruit?160:START_CREDITS,energy:130,points:0,kills:0,powerCooldown:0}];
   this.nodes=NODES.map((n,i)=>({...n,id:'node'+i,owner:-1,progress:0}));
-  this.bases=[{id:'hq0',kind:'hq',team:0,x:215,y:449,hp:1500,maxHp:1500,radius:58,cd:0,range:190},
-              {id:'hq1',kind:'hq',team:1,x:1385,y:449,hp:1500,maxHp:1500,radius:58,cd:0,range:190},
-              {id:'tur0a',kind:'turret',team:0,x:326,y:250,hp:280,maxHp:280,radius:28,cd:0,range:230},
-              {id:'tur0b',kind:'turret',team:0,x:326,y:650,hp:280,maxHp:280,radius:28,cd:0,range:230},
-              {id:'tur1a',kind:'turret',team:1,x:1274,y:250,hp:280,maxHp:280,radius:28,cd:0,range:230},
-              {id:'tur1b',kind:'turret',team:1,x:1274,y:650,hp:280,maxHp:280,radius:28,cd:0,range:230}];
+  this.bases=[{id:'hq0',kind:'hq',team:0,x:260,y:675,hp:1500,maxHp:1500,radius:58,cd:0,range:190},
+              {id:'hq1',kind:'hq',team:1,x:2140,y:675,hp:1500,maxHp:1500,radius:58,cd:0,range:190},
+              {id:'tur0a',kind:'turret',team:0,x:430,y:390,hp:280,maxHp:280,radius:28,cd:0,range:230},
+              {id:'tur0b',kind:'turret',team:0,x:430,y:960,hp:280,maxHp:280,radius:28,cd:0,range:230},
+              {id:'tur1a',kind:'turret',team:1,x:1970,y:390,hp:280,maxHp:280,radius:28,cd:0,range:230},
+              {id:'tur1b',kind:'turret',team:1,x:1970,y:960,hp:280,maxHp:280,radius:28,cd:0,range:230}];
   if(this.missionId==='safe-haven')this.resetSafeHaven();
  }
  resetSafeHaven(){
   this.training=true;this.teams=[{credits:760,energy:130,points:0,kills:0,powerCooldown:0},{credits:300,energy:130,points:0,kills:0,powerCooldown:0}];
-  this.nodes=[{id:'node0',x:735,y:238,name:'COMMUNITY SQUARE',owner:0,progress:-100},{id:'node1',x:830,y:485,name:'CLINIC JUNCTION',owner:-1,progress:0},{id:'node2',x:1125,y:690,name:'EVACUATION ROUTE',owner:-1,progress:0}];
-  this.bases=[{id:'hq0',kind:'hq',team:0,x:205,y:455,hp:1800,maxHp:1800,radius:58,cd:0,range:190},{id:'hq1',kind:'hq',team:1,x:1450,y:450,hp:1300,maxHp:1300,radius:52,cd:0,range:170}];
-  this.facilities=[{id:'facility-clinic',kind:'civilianClinic',team:0,x:610,y:285,hp:720,maxHp:720,radius:45,name:'Amina Community Clinic'},{id:'facility-market',kind:'market',team:0,x:765,y:620,hp:660,maxHp:660,radius:48,name:'Unity Market'},{id:'facility-centre',kind:'community',team:0,x:430,y:635,hp:760,maxHp:760,radius:48,name:'Safe Haven Centre'}];
-  this.mission={id:'safe-haven',stage:'prepare',stageTime:0,wave:0,routeHeld:0,facilitiesRequired:2};
+  this.nodes=[{id:'node0',x:825,y:335,name:'COMMUNITY SQUARE',owner:0,progress:-100},{id:'node1',x:1120,y:675,name:'CLINIC JUNCTION',owner:-1,progress:0},{id:'node2',x:1780,y:1030,name:'EVACUATION ROUTE',owner:-1,progress:0},{id:'node3',x:650,y:1050,name:'FOREST OUTPOST',kind:'outpost',reward:'credits',owner:-1,progress:0},{id:'node4',x:1570,y:320,name:'HILLSIDE DEPOT',kind:'outpost',reward:'energy',owner:-1,progress:0}];
+  this.bases=[{id:'hq0',kind:'hq',team:0,x:250,y:680,hp:1800,maxHp:1800,radius:58,cd:0,range:190},{id:'hq1',kind:'hq',team:1,x:2190,y:675,hp:1300,maxHp:1300,radius:52,cd:0,range:170}];
+  this.facilities=[{id:'facility-clinic',kind:'civilianClinic',team:0,x:790,y:480,hp:720,maxHp:720,radius:45,name:'Amina Community Clinic'},{id:'facility-market',kind:'market',team:0,x:1040,y:900,hp:660,maxHp:660,radius:48,name:'Unity Market'},{id:'facility-centre',kind:'community',team:0,x:560,y:830,hp:760,maxHp:760,radius:48,name:'Safe Haven Centre'},{id:'facility-school',kind:'community',team:0,x:1260,y:430,hp:690,maxHp:690,radius:46,name:'Kachia Community School'}];
+  this.caches=[{id:'cache-credits',kind:'cache',reward:'credits',x:520,y:390,radius:26,claimedBy:null},{id:'cache-repair',kind:'cache',reward:'repair',x:1320,y:880,radius:26,claimedBy:null},{id:'cache-defense',kind:'cache',reward:'defense',x:1680,y:565,radius:26,claimedBy:null}];
+  this.mission={id:'safe-haven',stage:'tutorial',stageTime:0,prepareRemaining:120,wave:0,routeHeld:0,facilitiesRequired:3};
  }
  start(){if(this.participants.length<2)return false;this.resetWorld();this.round++;this.phase='playing';
   if(this.missionId==='safe-haven'){
-   this.spawn(0,'engineer',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.event('OPERATION SAFE HAVEN - DEPLOY DEFENSES AROUND THE TOWN',0);return true;
+   this.spawn(0,'engineer',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);for(const unit of this.units){unit.order='hold';unit.dest=null;unit.hold=true}this.event('OPERATION SAFE HAVEN - LEARN THE FIELD, THEN PREPARE THE TOWN',0);return true;
   }
   for(let team=0;team<2;team++){
    const beginnerBot=this.mode==='solo'&&team===1&&this.difficulty==='recruit';
@@ -47,7 +48,8 @@ class Game {
   if(this.training)for(const unit of this.units){unit.order='hold';unit.dest=null;unit.hold=true}
   this.event('THE FRONTIER IS CONTESTED — CAPTURE THE THREE RELAYS');return true;
  }
- completeTraining(team){if(!this.training)return {ok:true};if(team!==0)return {ok:false,reason:'Only the trainee commander can finish training'};if(this.mission){const missing=['barricade','watchtower','barracks','workshop'].filter(type=>!this.structures.some(structure=>structure.team===team&&structure.type===type&&structure.status==='active'));if(missing.length)return {ok:false,reason:'Complete the '+missing.map(type=>STRUCTURES[type].label).join(', ')+' first'}}this.training=false;this.aiClock=0;this.incomeClock=0;if(this.mission){this.mission.stage='protect';this.mission.stageTime=0;this.spawnMissionWave(1);this.event('DEFENSE BEGUN - PROTECT CIVILIANS AND THE EVACUATION ROUTE',0)}else{for(const unit of this.units.filter(unit=>unit.team===1)){unit.hold=false;unit.order='attackmove';unit.dest={x:800,y:450}}this.event('FIELD TRAINING COMPLETE - LIVE BATTLE STARTED',0)}return {ok:true}}
+ tutorialComplete(team){if(!this.mission)return this.completeTraining(team);if(team!==0)return {ok:false,reason:'Only the trainee commander can complete onboarding'};if(this.mission.stage!=='tutorial')return {ok:true};this.mission.stage='prepare';this.mission.stageTime=0;this.mission.prepareRemaining=120;this.event('120 SECONDS OF PROTECTED PREPARATION BEGINS',0);return {ok:true}}
+ completeTraining(team){if(!this.training)return {ok:true};if(team!==0)return {ok:false,reason:'Only the trainee commander can finish training'};if(this.mission?.stage==='tutorial')return {ok:false,reason:'Complete or skip the field tutorial first'};this.training=false;this.aiClock=0;this.incomeClock=0;if(this.mission){this.mission.stage='protect';this.mission.stageTime=0;this.mission.prepareRemaining=0;this.spawnMissionWave(1);this.event('DEFENSE BEGUN - PROTECT CIVILIANS AND THE EVACUATION ROUTE',0)}else{for(const unit of this.units.filter(unit=>unit.team===1)){unit.hold=false;unit.order='attackmove';unit.dest={x:W/2,y:H/2}}this.event('FIELD TRAINING COMPLETE - LIVE BATTLE STARTED',0)}return {ok:true}}
  supply(team){return this.units.filter(u=>u.team===team).reduce((sum,u)=>sum+UNITS[u.type].supply,0)}
  spawn(team,type,free=false){
   const d=UNITS[type],t=this.teams[team]; if(!d||!t||this.phase!=='playing'&&!free)return {ok:false,reason:'No battle running'};
@@ -109,13 +111,14 @@ class Game {
   if(t.energy<110)return {ok:false,reason:'Need 110 energy'};
   if(t.powerCooldown>this.time)return {ok:false,reason:'Orbital strike cooling down'};
   t.energy-=110;t.powerCooldown=this.time+24;
-  const px=clamp(Number(x)||800,BOUNDS.left,BOUNDS.right),py=clamp(Number(y)||450,BOUNDS.top,BOUNDS.bottom);
+  const px=clamp(Number(x)||W/2,BOUNDS.left,BOUNDS.right),py=clamp(Number(y)||H/2,BOUNDS.top,BOUNDS.bottom);
   this.blasts.push({id:this.nextId('blast'),team,x:px,y:py,delay:1.25,age:0,radius:100,duration:0.9,hit:false});
   this.event((team===0?'AZURE':'CRIMSON')+' ORBITAL STRIKE INBOUND',team);
   return {ok:true};
  }
  applyDamage(target,damage,attacker){
   if(this.training&&target.team===0)return;
+  if(this.teams[target.team]?.defenseBoostUntil>this.time)damage*=.72;
   target.hp=Math.max(0,target.hp-damage);
   if(target.hp>0)return;
   if(this.units.includes(target)){this.units=this.units.filter(u=>u.id!==target.id)}
@@ -124,6 +127,14 @@ class Game {
   else{if(target.kind==='turret')this.event(teamName(target.team)+' LOST A TURRET',target.team);
   if(target.kind==='hq')this.end(1-target.team,this.missionId==='safe-haven'?(target.team===0?'SAFE HAVEN COMMAND POST LOST':'TOWN SECURED'):'COMMAND CENTER DESTROYED')}
   if(attacker!==null&&attacker!==undefined){this.teams[attacker].kills++;this.teams[attacker].credits+=target.type?9:40}
+ }
+ applyReward(team,reward,source){
+  const squad=this.units.filter(unit=>unit.team===team);
+  if(reward==='credits')this.teams[team].credits=Math.min(1100,this.teams[team].credits+120);
+  else if(reward==='energy')this.teams[team].energy=Math.min(180,this.teams[team].energy+65);
+  else if(reward==='repair')for(const unit of squad)unit.hp=Math.min(unit.maxHp,unit.hp+unit.maxHp*.3);
+  else if(reward==='defense')this.teams[team].defenseBoostUntil=Math.max(this.teams[team].defenseBoostUntil||0,this.time+25);
+  this.event((source||'SUPPLY CACHE')+' SECURED - '+reward.toUpperCase()+' SUPPORT RECEIVED',team);
  }
  fire(source,target,damage,speed,splash=0){
   this.projectiles.push({id:this.nextId('p'),sourceId:source.id,x:source.x,y:source.y,from:source.team,toX:target.x,toY:target.y,targetId:target.id,damage,speed,splash,age:0,life:3,type:source.type||source.kind});
@@ -186,10 +197,11 @@ class Game {
    if(node.progress<=-96)node.owner=0;
    else if(node.progress>=96)node.owner=1;
    else if(Math.abs(node.progress)<32)node.owner=-1;
-   if(previous!==node.owner){this.event(node.owner===-1?node.name+' CONTESTED':teamName(node.owner)+' CAPTURED '+node.name,node.owner)}
+   if(previous!==node.owner){this.event(node.owner===-1?node.name+' CONTESTED':teamName(node.owner)+' CAPTURED '+node.name,node.owner);if(node.kind==='outpost'&&node.owner>=0&&previous!==node.owner)this.applyReward(node.owner,node.reward,node.name)}
   }
+  for(const cache of this.caches){if(cache.claimedBy!==null)continue;for(let team=0;team<2;team++){if(this.units.some(unit=>unit.team===team&&Math.hypot(unit.x-cache.x,unit.y-cache.y)<70)){cache.claimedBy=team;this.applyReward(team,cache.reward,'SUPPLY CACHE');break}}}
   if(this.incomeClock>=1){const seconds=Math.floor(this.incomeClock);this.incomeClock-=seconds;
-   for(let t=0;t<2;t++){const owned=this.nodes.filter(n=>n.owner===t).length;this.teams[t].credits=Math.min(1100,this.teams[t].credits+(13+owned*13)*seconds);this.teams[t].energy=Math.min(180,this.teams[t].energy+(1.2+owned*1.9)*seconds);if(!this.training)this.teams[t].points+=owned*seconds*2}
+   for(let t=0;t<2;t++){const strategic=this.nodes.filter(n=>n.owner===t&&!n.kind).length,outposts=this.nodes.filter(n=>n.owner===t&&n.kind==='outpost').length;this.teams[t].credits=Math.min(1100,this.teams[t].credits+(13+strategic*13+outposts*5)*seconds);this.teams[t].energy=Math.min(180,this.teams[t].energy+(1.2+strategic*1.9+outposts*.8)*seconds);if(!this.training)this.teams[t].points+=strategic*seconds*2}
    if(this.training){this.teams[0].credits=Math.max(this.teams[0].credits,620);this.teams[0].energy=Math.max(this.teams[0].energy,130)}
   }
   const aiPeriod=this.mode==='solo'?{recruit:5.2,standard:2.8,veteran:1.3}[this.difficulty]:1.3;
@@ -215,10 +227,13 @@ class Game {
  }
  spawnMissionWave(size=1){
   if(!this.mission||this.training)return;this.mission.wave++;const count=(this.difficulty==='recruit'?1:2)+size*2+(this.difficulty==='veteran'?2:0),types=[];for(let index=0;index<count;index++)types.push(index%4===3?'tank':index%5===4?'rocket':'rifle');
-  for(let index=0;index<types.length;index++){const unit=this.spawnAt(1,types[index],1390+(index%2)*25,285+(index*73)%330),targets=this.facilities.filter(value=>value.hp>0);const target=targets[index%Math.max(1,targets.length)]||this.bases[0];unit.order='attackmove';unit.dest={x:target.x,y:target.y};unit.hold=false}this.event('HOSTILE WAVE '+this.mission.wave+' APPROACHING THE TOWN',1);
+  for(let index=0;index<types.length;index++){const unit=this.spawnAt(1,types[index],2070+(index%2)*32,360+(index*117)%650),targets=this.facilities.filter(value=>value.hp>0);const target=targets[index%Math.max(1,targets.length)]||this.bases[0];unit.order='attackmove';unit.dest={x:target.x,y:target.y};unit.hold=false}this.event('HOSTILE WAVE '+this.mission.wave+' APPROACHING THE TOWN',1);
  }
  stepMission(dt){
-  if(!this.mission||this.phase!=='playing'||this.training)return;const mission=this.mission;mission.stageTime+=dt;
+  if(!this.mission||this.phase!=='playing')return;const mission=this.mission;
+  if(mission.stage==='tutorial')return;
+  if(mission.stage==='prepare'){mission.stageTime+=dt;mission.prepareRemaining=Math.max(0,120-mission.stageTime);if(mission.prepareRemaining<=0)this.completeTraining(0);return}
+  if(this.training)return;mission.stageTime+=dt;
   if(mission.stage==='protect'){if(mission.stageTime>=18+mission.wave*8)this.spawnMissionWave(Math.min(3,mission.wave+1));if(mission.stageTime>=50){mission.stage='route';mission.stageTime=0;this.event('SECURE THE EASTERN EVACUATION ROUTE',0)}}
   else if(mission.stage==='route'){if(mission.stageTime>=24+mission.wave*6)this.spawnMissionWave(2);const route=this.nodes.find(node=>node.id==='node2');mission.routeHeld=route?.owner===0?mission.routeHeld+dt:0;if(mission.routeHeld>=8){mission.stage='final';mission.stageTime=0;this.spawnMissionWave(3);this.event('EVACUATION MOVING - SURVIVE THE FINAL ASSAULT',0)}}
   else if(mission.stage==='final'){if(mission.stageTime>=18+Math.max(0,mission.wave-4)*14)this.spawnMissionWave(3);if(mission.stageTime>=70&&this.facilities.filter(value=>value.hp>0).length>=mission.facilitiesRequired)this.end(0,'CIVILIANS EVACUATED - SAFETY RESTORED')}
@@ -241,15 +256,15 @@ class Game {
     u.order='attackmove';u.dest={x:dest.x+(team===0?-15:15)+rnum(-25,25),y:dest.y+rnum(-52,52)};u.hold=false;
    }
   }
-  if(this.time>(easy?220:85)&&t.energy>=110&&t.powerCooldown<this.time&&Math.random()<(easy?0.04:0.17)){const target=this.units.filter(u=>u.team!==team).sort((a,b)=>hypot(a,{x:800,y:450})-hypot(b,{x:800,y:450}))[0];if(target)this.orbital(team,target.x,target.y)}
-  if(!desired.length&&owned.length===3&&this.time>40){for(const u of this.units.filter(u=>u.team===team)){u.dest={x:team===0?1340:260,y:rnum(300,600)};u.order='attackmove'}}
+  if(this.time>(easy?220:85)&&t.energy>=110&&t.powerCooldown<this.time&&Math.random()<(easy?0.04:0.17)){const center={x:W/2,y:H/2};const target=this.units.filter(u=>u.team!==team).sort((a,b)=>hypot(a,center)-hypot(b,center))[0];if(target)this.orbital(team,target.x,target.y)}
+  if(!desired.length&&owned.length===this.nodes.length&&this.time>40){for(const u of this.units.filter(u=>u.team===team)){u.dest={x:team===0?2090:310,y:rnum(420,930)};u.order='attackmove'}}
  }
  end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(teamName(winner)+' WINS — '+reason,winner)}
- snapshot(){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,mission:this.mission?{...this.mission}:null,terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
+ snapshot(){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0)}:null,world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
   units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order,dest:u.dest?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null})),
   bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius})),
-  structures:this.structures.map(structure=>({...structure,hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),
+  structures:this.structures.map(structure=>({...structure,hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
   nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
   blasts:this.blasts.map(b=>({id:b.id,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }

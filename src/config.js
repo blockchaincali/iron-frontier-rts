@@ -1,5 +1,5 @@
 'use strict';
-const W=1600,H=900, BOUNDS={left:105,right:1495,top:85,bottom:815};
+const W=2400,H=1350, BOUNDS={left:125,right:2275,top:105,bottom:1245};
 const UNITS={
  rifle:{label:'Rifle Squad',short:'RIFLE',cost:60,hp:86,speed:94,range:138,damage:10,fireRate:0.65,bulletSpeed:670,splash:0,radius:12,supply:1},
  tank:{label:'Siege Tank',short:'TANK',cost:165,hp:305,speed:56,range:196,damage:41,fireRate:1.65,bulletSpeed:460,splash:31,radius:20,supply:3},
@@ -15,5 +15,11 @@ const STRUCTURES={
  clinic:{label:'Field Clinic',cost:135,buildTime:8,hp:560,radius:40,heal:9,role:'Restores nearby friendly units'}
 };
 const START_CREDITS=350, MAX_SUPPLY=50, MAX_TIME=360, WIN_SCORE=600;
-const NODES=[{x:800,y:200,name:'NORTH RIDGE'},{x:800,y:450,name:'CENTRAL RELAY'},{x:800,y:700,name:'SOUTH PASS'}];
+const NODES=[
+ {x:1200,y:250,name:'NORTH RIDGE'},
+ {x:1200,y:675,name:'CENTRAL RELAY'},
+ {x:1200,y:1100,name:'SOUTH PASS'},
+ {x:760,y:405,name:'FOREST OUTPOST',kind:'outpost',reward:'credits'},
+ {x:1640,y:945,name:'EASTERN DEPOT',kind:'outpost',reward:'energy'}
+];
 module.exports={W,H,BOUNDS,UNITS,STRUCTURES,START_CREDITS,MAX_SUPPLY,MAX_TIME,WIN_SCORE,NODES};

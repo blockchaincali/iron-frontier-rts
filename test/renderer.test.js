@@ -22,7 +22,7 @@ test('map definitions drive three environments and bounded extended terrain',()=
  assert.deepEqual(maps.ids,['coastal','desert','frozen']);
  for(const id of maps.ids){const map=maps.get(id);assert.equal(map.id,id);assert.ok(map.name&&map.description&&Number.isInteger(map.seed))}
  assert.match(renderer,/geo\('plane',220,180\)/);
- assert.match(renderer,/desiredRange-delta\*17,11,58/);
+ assert.match(renderer,/desiredRange-delta\*17,11,86/);
  assert.match(renderer,/cameraBounds\(\)/);
  assert.match(renderer,/addBiomeBoundary\(\)/);
  assert.match(gameUi,/name="battlefield"/);
@@ -68,7 +68,8 @@ test('renderer batches detailed entities, pools particles, and disposes lifecycl
  assert.match(gameUi,/t-lastDraw>=200/,'the hidden 2D minimap must be throttled while 3D is active');
 });
 test('Safe Haven renderer keeps construction and town scenery in the optimized entity lifecycle',()=>{
- assert.match(renderer,/structureModel\(s\)/);assert.match(renderer,/facilityModel\(f\)/);assert.match(renderer,/addSafeHavenTown/);assert.match(renderer,/InstancedMesh/);assert.match(renderer,/syncPlacementGhost/);assert.match(renderer,/\['unit','base','structure','facility','node'\]/);
+ assert.match(renderer,/structureModel\(s\)/);assert.match(renderer,/facilityModel\(f\)/);assert.match(renderer,/addSafeHavenTown/);assert.match(renderer,/InstancedMesh/);assert.match(renderer,/syncPlacementGhost/);assert.match(renderer,/\['structure',data\.structures\|\|\[\]\]/);
+ assert.match(renderer,/\['cache',data\.caches\|\|\[\]\]/);assert.match(renderer,/cacheModel/);
  assert.match(gameUi,/data-structure/);assert.match(gameUi,/placementValid/);assert.match(gameUi,/data-safe-build/);assert.match(gameUi,/landscape-suggestion/);
 });
 

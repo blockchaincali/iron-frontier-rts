@@ -63,6 +63,7 @@ function action(ws,msg){
   case 'command':outcome=game.command(player.team,msg.unitIds,msg.action,msg.x,msg.y,msg.targetId);break;
   case 'ability':outcome=game.orbital(player.team,msg.x,msg.y);break;
   case 'trainingComplete':outcome=game.completeTraining(player.team);break;
+  case 'tutorialComplete':outcome=game.tutorialComplete(player.team);break;
   case 'surrender':if(game.phase==='playing')game.end(1-player.team,'SURRENDER');outcome={ok:true};break;
   case 'leave':{
    if(game.phase==='playing'&&!game.participants.some(v=>v.bot))game.end(1-player.team,'OPPONENT LEFT');

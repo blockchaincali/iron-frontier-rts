@@ -11,7 +11,9 @@
     "qa:world": "node scripts/world-3d-smoke.js",
     "qa:final": "node scripts/final-competition-smoke.js",
     "qa:performance": "node scripts/release-performance-profile.js",
-    "qa:safe-haven": "node scripts/safe-haven-smoke.js"
+    "qa:safe-haven": "node scripts/safe-haven-smoke.js",
+    "qa:expansion": "node scripts/world-expansion-smoke.js",
+    "qa:mobile": "node scripts/mobile-layout-smoke.js"
   },
   "engines": {
     "node": ">=20"
