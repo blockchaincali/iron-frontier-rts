@@ -7,7 +7,7 @@ const PORT=Number(process.env.PORT||3000),rooms=new Map(),STEP=0.05;
 const uid=()=>crypto.randomBytes(9).toString('hex');
 const newCode=()=>Array.from(crypto.randomBytes(4),n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
 const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data))};
-const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/home.js':'home.js','/town.js':'town.js','/platform.js':'platform.js','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/homestand-poster.jpg':'assets/homestand-poster.jpg','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
+const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/home.js':'home.js','/town.js':'town.js','/platform.js':'platform.js','/audio.js':'audio.js','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/homestand-poster.jpg':'assets/homestand-poster.jpg','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
 // Browsers receive the minified Three.js build; the stable /vendor/three.module.js URL keeps the import map unchanged.
 const vendorFiles={'/vendor/three.module.js':['three','build','three.module.min.js'],'/vendor/three.core.min.js':['three','build','three.core.min.js'],'/vendor/three.core.js':['three','build','three.core.min.js'],'/vendor/BufferGeometryUtils.js':['three','examples','jsm','utils','BufferGeometryUtils.js']};
 const compressible=/\.(html|css|js)$/,responseCache=new Map();
@@ -34,7 +34,7 @@ const participants=room=>room.game.participants;
 const broadcast=(room,payload)=>{for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),payload)};
 const broadcastState=room=>{
  const snap=room.game.snapshot();
- for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),{type:'state',me:p.id,team:p.team,host:p.id===room.hostId,...snap});
+ for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),{type:'state',me:p.id,team:p.team,host:p.id===room.hostId,...snap,mines:room.game.visibleMines(p.team)});
 };
 function register(ws,room,p,existing=false){
  const old=room.sockets.get(p.id);if(old&&old!==ws){try{old.close(4000,'Reconnected')}catch{}}
@@ -44,7 +44,7 @@ function register(ws,room,p,existing=false){
 function create(ws,msg){
  if(ws.room)return send(ws,{type:'error',message:'Already in a room'});
  let code=newCode();while(rooms.has(code))code=newCode();
- const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true),guided:msg.guided===true});
+ const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||String(msg.mapId||'')),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,theatreId:String(msg.theatreId||''),training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true),guided:msg.guided===true});
  const room={code,game,hostId:null,sockets:new Map(),lastActivity:Date.now()};rooms.set(code,room);
  const id=uid(),name=String(msg.name||'Commander').trim().slice(0,18)||'Commander';game.addParticipant(id,name,0,false);room.hostId=id;
  if(mode==='solo')game.addParticipant(uid(),'CRIMSON BOT',1,true);
@@ -74,6 +74,8 @@ function action(ws,msg){
   case 'upgrade':outcome=game.upgradeStructure(player.team,String(msg.structureId||''));break;
   case 'command':outcome=game.command(player.team,msg.unitIds,msg.action,msg.x,msg.y,msg.targetId);break;
   case 'ability':outcome=game.orbital(player.team,msg.x,msg.y);break;
+  case 'plant':outcome=game.plantIed(player.team,msg.unitIds,msg.x,msg.y);if(outcome.ok)send(ws,{type:'notice',message:'Charge team moving to the site'});break;
+  case 'defuse':outcome=game.defuseIed(player.team,msg.unitIds,msg.mineId?String(msg.mineId):null);if(outcome.ok)send(ws,{type:'notice',message:'Eagle-Eye moving in to defuse'});break;
   case 'trainingComplete':outcome=game.completeTraining(player.team);break;
   case 'tutorialComplete':outcome=game.tutorialComplete(player.team);break;
   case 'surrender':if(game.phase==='playing')game.end(1-player.team,'SURRENDER');outcome={ok:true};break;

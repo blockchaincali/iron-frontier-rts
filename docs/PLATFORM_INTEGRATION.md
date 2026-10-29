@@ -24,4 +24,4 @@ Events emitted by the game today: `launch` (`mode`, `missionId`, `difficulty`), 
 
 ## Open questions for the partner review
 
-Authentication handoff format, webview capabilities (fullscreen, orientation lock, audio policy), content-rating requirements for a civilian-defense theme, analytics schema, and whether multiplayer rooms may be shared through partner social features.
+Authentication handoff format, webview capabilities (fullscreen, orientation lock, audio policy — sound starts only after a user gesture), content-rating requirements for a civilian-defense theme set in real Nigerian cities with IED mechanics (guardrails in `DEFEND_THE_NORTH.md`), analytics schema, and whether multiplayer rooms may be shared through partner social features.

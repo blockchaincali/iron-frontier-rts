@@ -1,6 +1,6 @@
 # Operation Safe Haven
 
-Operation Safe Haven is a self-contained civilian-defense mission set in a fictional Nigerian town. It does not depict a real attack, armed group, town, or military operation. The player commands a community protection and emergency-response force defending residents from a fictional insurgent force.
+Operation Safe Haven is the civilian-defense mission behind the **Defend the North** campaign. Since the campaign update it is played in six real Nigerian cities (see `DEFEND_THE_NORTH.md`); the hostile force and every scenario remain fictional, and no mission depicts a real attack or its victims. The player commands a community protection and emergency-response force defending residents from a fictional insurgent force.
 
 ## Mission flow
 

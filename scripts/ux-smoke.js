@@ -44,7 +44,7 @@ async function runDesktop(browser){
  await page.screenshot({path:path.join(output,'home-desktop.png'),fullPage:true});
  await assertNoOverflow(page,'desktop home');
  await page.locator('#open-operations').click();await page.locator('#tutorial').click();
- await title(page,'Explore Kachia');
+ await title(page,'Explore the town');
  const protectedStart=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,stage:state.mission.stage,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp)}});
  await page.waitForTimeout(2200);
  const protectedLater=await page.evaluate(()=>{const state=window.IronBridge.snapshot();return {training:state.training,time:state.time,stage:state.mission.stage,hp:state.units.filter(unit=>unit.team===0).map(unit=>unit.hp),hostiles:state.units.filter(unit=>unit.team===1).length}});
@@ -72,7 +72,7 @@ async function runDesktop(browser){
  await title(page,'Repel the first attack');
  await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.mission.stage==='protect'&&state.units.some(unit=>unit.team===1)});
  await page.locator('#tutorial-ready').click();
- await page.getByText('Field training complete — Kachia is counting on you',{exact:true}).waitFor();
+ await page.getByText('Field training complete — Abuja is counting on you',{exact:true}).waitFor();
  await page.screenshot({path:path.join(output,'battle-desktop.png'),fullPage:true});
  await assertNoOverflow(page,'desktop battle');
  await context.close();
@@ -84,7 +84,7 @@ async function runMobile(browser){
  await page.screenshot({path:path.join(output,'home-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile home');
  await page.locator('#open-operations').tap();await page.locator('#tutorial').tap();
- await title(page,'Explore Kachia');
+ await title(page,'Explore the town');
  await page.screenshot({path:path.join(output,'tutorial-mobile.png'),fullPage:true});
  await assertNoOverflow(page,'mobile tutorial');
  await page.locator('#tutorial-skip').tap();

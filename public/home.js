@@ -1,10 +1,17 @@
 import * as THREE from '/vendor/three.module.js';
-import {Kit,townScenery,groundMesh,facilityMesh,structureParts,vehicleTemplate,crowd,toX,toZ,layout,disposeTree,rngFrom,C} from '/town.js';
+import {Kit,townScenery,groundMesh,facilityMesh,structureParts,vehicleTemplate,crowd,toX,toZ,layout,disposeTree,rngFrom,C,setTheatre,welcomeSign} from '/town.js';
 
-// Cinematic main-menu scene: the real Kachia district at golden hour, with civilian life,
+// Cinematic main-menu scene: the selected campaign city at golden hour, with civilian life,
 // a distant warning in the east and a Safe Haven convoy arriving to fortify the town.
 // It is deliberately lighter than the battle renderer and is fully disposed on deploy.
-const BEATS=[
+let theatreLook=null;
+const beatsFor=t=>t?[
+ {at:0,time:t.city.toUpperCase()+' · 16:40',text:'Market day at '+t.facilities.market+'.'},
+ {at:4.2,time:t.zones.staging.toUpperCase(),text:'Black Harmattan fighters are gathering beyond the town.',warning:true},
+ {at:8.4,time:t.roads.highway.toUpperCase(),text:'The Homestand response convoy rolls into '+t.city+'.'},
+ {at:12.4,time:t.zones.base.toUpperCase(),text:'Engineers begin fortifying '+t.area.split(' · ')[0]+'.'}
+]:null;
+let BEATS=[
  {at:0,time:'KACHIA · 16:40',text:'Market day in a peaceful town.'},
  {at:4.2,time:'EASTERN RIDGE',text:'An armed group is gathering beyond the hills.',warning:true},
  {at:8.4,time:'HIGHWAY WEST',text:'The Safe Haven response convoy rolls in.'},
@@ -24,11 +31,11 @@ function along(p,d,out){d=((d%p.total)+p.total)%p.total;let i=1;while(i<p.length
 
 function instanceVehicle(kind,color){const g=vehicleTemplate(kind,color);g.traverse(o=>{if(o.isMesh){o.castShadow=false}});scene.add(g);return g}
 function buildScene(quality){
- const L=layout();scene=new THREE.Scene();scene.background=sky();scene.fog=new THREE.FogExp2(0xe6c897,.0145);
+ const L=layout();scene=new THREE.Scene();scene.background=sky();scene.fog=new THREE.FogExp2(theatreLook?theatreLook.atmosphere.fog:0xe6c897,theatreLook?Math.max(.0125,theatreLook.atmosphere.density*1.35):.0145);
  scene.add(new THREE.HemisphereLight(0xd6e8f0,0x5e4a30,1.35));const sun=new THREE.DirectionalLight(0xffd6a0,3.4);sun.position.set(-30,26,18);sun.castShadow=quality==='high';if(sun.castShadow){sun.shadow.mapSize.set(2048,2048);Object.assign(sun.shadow.camera,{left:-46,right:46,top:30,bottom:-30,near:1,far:120});sun.shadow.bias=-.0006;sun.shadow.normalBias=.02}scene.add(sun);const rim=new THREE.DirectionalLight(0x9fd6ff,.6);rim.position.set(24,12,-20);scene.add(rim);
- const outer=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshStandardMaterial({color:0x7c844c,roughness:1}));outer.rotation.x=-Math.PI/2;outer.position.y=-.12;outer.receiveShadow=true;scene.add(outer);
+ const outer=new THREE.Mesh(new THREE.PlaneGeometry(900,900),new THREE.MeshStandardMaterial({color:theatreLook?parseInt(theatreLook.look.soil.slice(1),16):0x7c844c,roughness:1}));outer.rotation.x=-Math.PI/2;outer.position.y=-.12;outer.receiveShadow=true;scene.add(outer);
  scene.add(groundMesh(quality==='low'?1024:quality==='balanced'?1536:2048,quality==='high'?8:4));
- const k=new Kit(0x5afe);townScenery(k,{quality,lite:quality!=='high'});scene.add(k.build({shadows:quality==='high'}));
+ const k=new Kit(0x5afe);townScenery(k,{quality,lite:quality!=='high'});scene.add(k.build({shadows:quality==='high'}));if(theatreLook)scene.add(welcomeSign(theatreLook.sign));
  for(const [kind,id,x,y] of [['civilianClinic','facility-clinic',790,480],['market','facility-market',1040,900],['community','facility-centre',560,830],['community','facility-school',1260,430]]){const m=facilityMesh(kind,id);m.position.set(toX(x),0,toZ(y));m.traverse(o=>{if(o.isMesh)o.castShadow=quality==='high'});scene.add(m)}
  const hq=structureParts('hq',0),hqGroup=new THREE.Group();hqGroup.add(hq.foundation,hq.body);hqGroup.position.set(toX(250),0,toZ(680));scene.add(hqGroup);
  const tower=structureParts('watchtower',0),tg=new THREE.Group();tg.add(tower.foundation,tower.body);tg.position.set(toX(470),0,toZ(470));scene.add(tg);
@@ -81,6 +88,7 @@ export function mount(target,opts={}){
  const small=matchMedia('(max-width: 900px), (max-height: 520px)').matches,quality=opts.quality||(small||(navigator.hardwareConcurrency||8)<=4?'balanced':'high');
  try{renderer=new THREE.WebGLRenderer({antialias:!small,powerPreference:'high-performance',preserveDrawingBuffer:Boolean(opts.poster)})}catch(error){console.warn('Homepage scene unavailable',error);opts.onFail?.();return}
  renderer.setPixelRatio(Math.min(devicePixelRatio||1,opts.poster?2:small?1.25:1.5));renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.08;renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.shadowMap.enabled=quality==='high';renderer.shadowMap.type=THREE.PCFSoftShadowMap;renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+ const M=globalThis.IronMaps;theatreLook=M?.theatre?setTheatre(M.theatre(opts.theatreId||localStorage.getItem('homestand-theatre')).id):null;BEATS=beatsFor(theatreLook)||BEATS;
  camera=new THREE.PerspectiveCamera(40,1,.3,320);buildScene(quality);
  const canvas=renderer.domElement;canvas.className='home-canvas';canvas.setAttribute('aria-hidden','true');host.appendChild(canvas);resize();
  if(opts.poster){skipped=true;update(0);camera.position.set(-30,12.5,21);camera.lookAt(-10,0,1)}else update(0);
@@ -91,5 +99,7 @@ export function mount(target,opts={}){
 export function skip(){if(skipped)return;skipped=true;elapsed=0;options.onBeat?.(null,99)}
 export function unmount(){pause();removeEventListener('resize',resizeHandler);document.removeEventListener('visibilitychange',visibleHandler);if(scene){disposeTree(scene);scene.background?.dispose();plume.texture?.dispose();for(const b of beacons)b.material.map?.dispose()}renderer?.dispose();renderer?.domElement.remove();renderer=scene=camera=null;traffic=[];convoy=[];people=null;dust=null;beacons=[];plume=[];sparks=null}
 export const active=()=>Boolean(renderer);
-window.HomestandHome={mount,unmount,skip,active,pause,play};
+// Re-dress the background for the city picked on the campaign map.
+function changeTheatre(id){if(!renderer||!host)return;const target=host,opts={...options,skipIntro:true,theatreId:id};unmount();mount(target,opts)}
+window.HomestandHome={mount,unmount,skip,active,pause,play,setTheatre:changeTheatre,beats:()=>BEATS};
 window.dispatchEvent(new Event('homestand-home-ready'));

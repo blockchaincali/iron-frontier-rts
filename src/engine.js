@@ -1,6 +1,6 @@
 'use strict';
-const {W,H,BOUNDS,UNITS,STRUCTURES,START_CREDITS,MAX_SUPPLY,MAX_TIME,WIN_SCORE,NODES}=require('./config');
-const {blockers:sceneryBlockers}=require('../public/maps');
+const {W,H,BOUNDS,UNITS,STRUCTURES,IED,START_CREDITS,MAX_SUPPLY,MAX_TIME,WIN_SCORE,NODES}=require('./config');
+const {blockers:sceneryBlockers,theatre:getTheatre,theatreIds,layouts}=require('../public/maps');
 // Safe Haven assault pacing per difficulty: seconds between waves, opening size, growth per wave and cap.
 const WAVE_PLAN={recruit:{gap:24,base:2,grow:1,max:6},standard:{gap:18,base:3,grow:1.4,max:9},veteran:{gap:13,base:4,grow:2,max:12}};
 const LANES=[360,675,960];
@@ -10,9 +10,9 @@ const hypot=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const teamName=t=>t===0?'AZURE UNION':'CRIMSON LEGION';
 
 class Game {
- constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null,guided=false}={}){
-  this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.mapId=this.missionId||(['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.guided=mode==='solo'&&Boolean(guided);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
-  this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.structures=[];this.facilities=[];this.caches=[];this.projectiles=[];this.blasts=[];this.participants=[];this.mission=null;
+ constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null,guided=false,theatreId=null}={}){
+  this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.mapId=this.missionId||(['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.theatreId=this.missionId?(theatreIds.includes(theatreId)?theatreId:theatreIds[0]):null;this.theatre=this.theatreId?getTheatre(this.theatreId):null;this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.guided=mode==='solo'&&Boolean(guided);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
+  this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.structures=[];this.facilities=[];this.caches=[];this.mines=[];this.projectiles=[];this.blasts=[];this.participants=[];this.mission=null;
   this.win=null;this.aiClock=0;this.incomeClock=0;this.snapshotClock=0;this.round=0;
   this.resetWorld();
  }
@@ -20,7 +20,7 @@ class Game {
  event(text,team=null){this.events.push({id:this.eventId++,text,team});if(this.events.length>12)this.events.shift()}
  addParticipant(id,name,team,isBot=false){if(this.phase!=='lobby')return false;if(this.participants.some(p=>p.team===team))return false;this.participants.push({id,name:name.slice(0,18),team,bot:isBot,connected:true});return true}
  resetWorld(){
-  this.time=0;this.aiClock=0;this.incomeClock=0;this.seq=1;this.eventId=1;this.stats=[0,1].map(()=>({built:0,trained:0,caches:0,lost:0}));this.units=[];this.bases=[];this.structures=[];this.facilities=[];this.caches=[];this.projectiles=[];this.blasts=[];this.events=[];this.win=null;
+  this.time=0;this.aiClock=0;this.incomeClock=0;this.seq=1;this.eventId=1;this.stats=[0,1].map(()=>({built:0,trained:0,caches:0,lost:0,planted:0,detected:0,defused:0}));this.units=[];this.bases=[];this.structures=[];this.facilities=[];this.caches=[];this.mines=[];this.projectiles=[];this.blasts=[];this.events=[];this.win=null;
   const recruit=this.mode==='solo'&&this.difficulty==='recruit';
   this.teams=[{credits:recruit?620:START_CREDITS,energy:130,points:0,kills:0,powerCooldown:0},{credits:recruit?160:START_CREDITS,energy:130,points:0,kills:0,powerCooldown:0}];
   this.nodes=NODES.map((n,i)=>({...n,id:'node'+i,owner:-1,progress:0}));
@@ -34,15 +34,15 @@ class Game {
  }
  resetSafeHaven(){
   this.training=true;this.teams=[{credits:760,energy:130,points:0,kills:0,powerCooldown:0},{credits:300,energy:130,points:0,kills:0,powerCooldown:0}];
-  this.nodes=[{id:'node0',x:825,y:335,name:'COMMUNITY SQUARE',owner:0,progress:-100},{id:'node1',x:1120,y:675,name:'CLINIC JUNCTION',owner:-1,progress:0},{id:'node2',x:1780,y:1030,name:'EVACUATION ROUTE',owner:-1,progress:0},{id:'node3',x:650,y:1050,name:'FOREST OUTPOST',kind:'outpost',reward:'credits',owner:-1,progress:0},{id:'node4',x:1570,y:320,name:'HILLSIDE DEPOT',kind:'outpost',reward:'energy',owner:-1,progress:0}];
+  const T=this.theatre,N=T.nodes;this.nodes=[{id:'node0',x:825,y:335,name:N[0],owner:0,progress:-100},{id:'node1',x:1120,y:675,name:N[1],owner:-1,progress:0},{id:'node2',x:1780,y:1030,name:N[2],owner:-1,progress:0},{id:'node3',x:650,y:1050,name:N[3],kind:'outpost',reward:'credits',owner:-1,progress:0},{id:'node4',x:1570,y:320,name:N[4],kind:'outpost',reward:'energy',owner:-1,progress:0}];
   this.bases=[{id:'hq0',kind:'hq',team:0,x:250,y:680,hp:1800,maxHp:1800,radius:58,cd:0,range:190},{id:'hq1',kind:'hq',team:1,x:2190,y:675,hp:1300,maxHp:1300,radius:52,cd:0,range:170}];
-  this.facilities=[{id:'facility-clinic',kind:'civilianClinic',team:0,x:790,y:480,hp:720,maxHp:720,radius:45,name:'Amina Community Clinic'},{id:'facility-market',kind:'market',team:0,x:1040,y:900,hp:660,maxHp:660,radius:48,name:'Unity Market'},{id:'facility-centre',kind:'community',team:0,x:560,y:830,hp:760,maxHp:760,radius:48,name:'Safe Haven Centre'},{id:'facility-school',kind:'community',team:0,x:1260,y:430,hp:690,maxHp:690,radius:46,name:'Kachia Community School'}];
+  this.facilities=[{id:'facility-clinic',kind:'civilianClinic',team:0,x:790,y:480,hp:720,maxHp:720,radius:45,name:T.facilities.clinic},{id:'facility-market',kind:'market',team:0,x:1040,y:900,hp:660,maxHp:660,radius:48,name:T.facilities.market},{id:'facility-centre',kind:'community',team:0,x:560,y:830,hp:760,maxHp:760,radius:48,name:T.facilities.centre},{id:'facility-school',kind:'community',team:0,x:1260,y:430,hp:690,maxHp:690,radius:46,name:T.facilities.school}];
   this.caches=[{id:'cache-credits',kind:'cache',reward:'credits',x:520,y:390,radius:26,claimedBy:null},{id:'cache-repair',kind:'cache',reward:'repair',x:1320,y:880,radius:26,claimedBy:null},{id:'cache-defense',kind:'cache',reward:'defense',x:1680,y:565,radius:26,claimedBy:null}];
   this.mission={id:'safe-haven',stage:'tutorial',stageTime:0,prepareRemaining:120,wave:0,routeHeld:0,facilitiesRequired:3,guided:this.guided,waveClock:0,nextWaveIn:0,residents:240,evacuated:0};
  }
  start(){if(this.participants.length<2)return false;this.resetWorld();this.round++;this.phase='playing';
   if(this.missionId==='safe-haven'){
-   this.spawn(0,'engineer',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);const formation=[[345,610],[330,705],[372,725],[330,765],[372,785]];this.units.forEach((unit,index)=>{[unit.x,unit.y]=formation[index]||[unit.x,unit.y];unit.order='hold';unit.dest=null;unit.hold=true;unit.angle=0});this.event('OPERATION SAFE HAVEN - LEARN THE FIELD, THEN PREPARE THE TOWN',0);return true;
+   this.spawn(0,'engineer',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'scanner',true);const formation=[[345,610],[330,705],[372,725],[330,765],[372,785],[400,640]];this.units.forEach((unit,index)=>{[unit.x,unit.y]=formation[index]||[unit.x,unit.y];unit.order='hold';unit.dest=null;unit.hold=true;unit.angle=0});this.event(this.theatre.operation.toUpperCase()+' - '+this.theatre.city.toUpperCase()+', '+this.theatre.state.toUpperCase()+' STATE',0);this.plantInfiltrators(Math.round(this.theatre.threat.ied*3));return true;
   }
   for(let team=0;team<2;team++){
    const beginnerBot=this.mode==='solo'&&team===1&&this.difficulty==='recruit';
@@ -81,9 +81,9 @@ class Game {
   for(const builder of builders){builder.order='construct';builder.dest={x:px,y:py};builder.targetId=structure.id;builder.hold=false}this.event('CONSTRUCTION STARTED - '+definition.label.toUpperCase(),team);return {ok:true,structure};
  }
  produce(team,structureId,type){
-  const producerType=type==='rifle'?'barracks':type==='patrol'?'workshop':null,producer=this.structures.find(structure=>structure.id===structureId&&structure.team===team&&structure.type===producerType&&structure.status==='active');
+  const producerType=type==='rifle'?'barracks':type==='patrol'||type==='scanner'?'workshop':null,producer=this.structures.find(structure=>structure.id===structureId&&structure.team===team&&structure.type===producerType&&structure.status==='active');
   if(!producerType)return {ok:false,reason:'That unit cannot be produced by a town structure'};if(!producer)return {ok:false,reason:'Select an active '+STRUCTURES[producerType].label.toLowerCase()};if(producer.production)return {ok:false,reason:'Production queue is busy'};const definition=UNITS[type],queued=this.structures.filter(value=>value.team===team&&value.production).reduce((sum,value)=>sum+(UNITS[value.production.type]?.supply||0),0);if(this.supply(team)+queued+definition.supply>MAX_SUPPLY)return {ok:false,reason:'Unit supply cap reached'};if(this.teams[team].credits<definition.cost)return {ok:false,reason:'Need '+definition.cost+' credits'};
-  this.teams[team].credits-=definition.cost;producer.production={type,progress:0,duration:type==='rifle'?4.5:8};this.event((type==='rifle'?'INFANTRY SQUAD TRAINING':'PROTECTED PATROL VEHICLE IN PRODUCTION'),team);return {ok:true};
+  this.teams[team].credits-=definition.cost;producer.production={type,progress:0,duration:type==='rifle'?4.5:type==='scanner'?7:8};this.event((type==='rifle'?'INFANTRY SQUAD TRAINING':type==='scanner'?'EAGLE-EYE SCANNER IN PRODUCTION':'PROTECTED PATROL VEHICLE IN PRODUCTION'),team);return {ok:true};
  }
  repairStructure(team,structureId,builderIds){
   const structure=this.structures.find(value=>value.id===structureId&&value.team===team&&value.status==='active');if(!structure)return {ok:false,reason:'Select a completed friendly defense'};if(structure.hp>=structure.maxHp)return {ok:false,reason:'This defense is already at full health'};const engineer=this.units.find(unit=>unit.team===team&&unit.type==='engineer'&&builderIds?.includes(unit.id));if(!engineer)return {ok:false,reason:'Select an engineer vehicle to repair'};engineer.order='repair';engineer.dest={x:structure.x,y:structure.y};engineer.targetId=structure.id;engineer.hold=false;this.event('ENGINEER DISPATCHED FOR MAINTENANCE',team);return {ok:true};
@@ -103,7 +103,7 @@ class Game {
   }
   units.forEach((u,i)=>{
    const spread=(i-(units.length-1)/2)*27;
-   u.order=action;u.targetId=action==='focus'?targetId:null;
+   u.order=action;u.job=null;u.targetId=action==='focus'?targetId:null;
    u.hold=action==='hold'||action==='stop';
    if(action==='move'||action==='attackmove')u.dest={x:clamp(Number(x)||u.x,BOUNDS.left,BOUNDS.right),y:clamp((Number(y)||u.y)+spread,BOUNDS.top,BOUNDS.bottom)};
    if(action==='focus')u.dest=null;
@@ -119,6 +119,79 @@ class Game {
   this.blasts.push({id:this.nextId('blast'),team,x:px,y:py,delay:1.25,age:0,radius:100,duration:0.9,hit:false});
   this.event((team===0?'AZURE':'CRIMSON')+' ORBITAL STRIKE INBOUND',team);
   return {ok:true};
+ }
+ // ---- IEDs and the Eagle-Eye scanner -------------------------------------------------
+ // Charges are hidden from the opposing side until a scanner sweeps them. Revealed hostile
+ // charges are steered around automatically, or a scanner can be sent in to defuse them.
+ activeCharges(team){return this.mines.filter(mine=>mine.team===team).length+this.units.filter(unit=>unit.team===team&&unit.order==='plant').length}
+ plantIed(team,ids,x,y){
+  if(this.phase!=='playing')return {ok:false,reason:'No active battle'};
+  const px=Number(x),py=Number(y);if(!Number.isFinite(px)||!Number.isFinite(py)||px<BOUNDS.left+20||px>BOUNDS.right-20||py<BOUNDS.top+20||py>BOUNDS.bottom-20)return {ok:false,reason:'Plant charges inside the battlefield'};
+  const planters=this.units.filter(unit=>unit.team===team&&Array.isArray(ids)&&ids.includes(unit.id)&&IED.planters.includes(unit.type));if(!planters.length)return {ok:false,reason:'Select a rifle squad or engineer to plant a charge'};
+  if(this.activeCharges(team)>=IED.maxActive)return {ok:false,reason:'Charge limit reached ('+IED.maxActive+' active)'};
+  if(this.teams[team].credits<IED.cost)return {ok:false,reason:'Need '+IED.cost+' credits'};
+  if(this.mines.some(mine=>Math.hypot(mine.x-px,mine.y-py)<56))return {ok:false,reason:'A charge is already planted there'};
+  if([...this.bases,...this.facilities,...this.nodes].some(object=>object.hp!==0&&Math.hypot(object.x-px,object.y-py)<(object.radius||40)+30))return {ok:false,reason:'Too close to a building or objective'};
+  const planter=planters.sort((a,b)=>Math.hypot(a.x-px,a.y-py)-Math.hypot(b.x-px,b.y-py))[0];
+  planter.order='plant';planter.job={x:px,y:py,progress:0};planter.dest={x:px,y:py};planter.hold=false;planter.targetId=null;
+  return {ok:true,unitId:planter.id};
+ }
+ defuseIed(team,ids,mineId){
+  if(this.phase!=='playing')return {ok:false,reason:'No active battle'};
+  const scanners=this.units.filter(unit=>unit.team===team&&Array.isArray(ids)&&ids.includes(unit.id)&&unit.type==='scanner');if(!scanners.length)return {ok:false,reason:'Only an Eagle-Eye scanner can defuse charges'};
+  const known=this.mines.filter(mine=>mine.team!==team&&mine.revealed[team]);
+  const mine=mineId?known.find(value=>value.id===mineId):known.sort((a,b)=>hypot(scanners[0],a)-hypot(scanners[0],b))[0];if(!mine)return {ok:false,reason:mineId?'That charge is no longer there':'No detected charges — sweep the roads first'};
+  const scanner=scanners.sort((a,b)=>hypot(a,mine)-hypot(b,mine))[0];
+  scanner.order='defuse';scanner.targetId=mine.id;scanner.job={progress:0};scanner.dest={x:mine.x,y:mine.y};scanner.hold=false;
+  return {ok:true,unitId:scanner.id,mineId:mine.id};
+ }
+ // Runs a unit's plant/defuse job. 'busy' = working on the spot, 'move' = travelling there.
+ stepIedJob(u,dt){
+  if(u.order==='plant'){const job=u.job;if(!job){u.order='hold';u.hold=true;return null}
+   if(Math.hypot(u.x-job.x,u.y-job.y)>IED.plantRange){u.dest={x:job.x,y:job.y};return 'move'}
+   job.progress+=dt;u.angle+=dt*.6;if(job.progress<IED.plantTime)return 'busy';
+   u.order='hold';u.hold=true;u.job=null;u.dest=null;
+   if(this.teams[u.team].credits<IED.cost){this.event('CHARGE ABANDONED - NOT ENOUGH CREDITS',u.team);return 'busy'}
+   this.teams[u.team].credits-=IED.cost;this.stats[u.team].planted++;
+   this.mines.push({id:this.nextId('ied'),team:u.team,x:job.x,y:job.y,armedAt:this.time+IED.arm,revealed:[false,false]});
+   this.event('CHARGE PLANTED - '+this.placeName(job),u.team);return 'busy';
+  }
+  if(u.order==='defuse'){const mine=this.mines.find(value=>value.id===u.targetId);if(!mine){u.order='hold';u.hold=true;u.job=null;u.targetId=null;u.dest=null;return null}
+   if(Math.hypot(u.x-mine.x,u.y-mine.y)>IED.defuseRange+u.radius){u.dest={x:mine.x,y:mine.y};return 'move'}
+   u.job=u.job||{progress:0};u.job.progress+=dt;u.angle=Math.atan2(mine.y-u.y,mine.x-u.x);if(u.job.progress<IED.defuseTime)return 'busy';
+   this.mines=this.mines.filter(value=>value!==mine);this.teams[u.team].credits=Math.min(1100,this.teams[u.team].credits+IED.salvage);this.stats[u.team].defused++;
+   u.order='hold';u.hold=true;u.job=null;u.targetId=null;u.dest=null;this.event('IED DEFUSED - '+this.placeName(mine)+' (+'+IED.salvage+' CR SALVAGE)',u.team);return 'busy';
+  }
+  return null;
+ }
+ stepMines(){
+  const scan=UNITS.scanner.scan;
+  for(const scanner of this.units){if(scanner.type!=='scanner')continue;for(const mine of this.mines)if(mine.team!==scanner.team&&!mine.revealed[scanner.team]&&Math.hypot(mine.x-scanner.x,mine.y-scanner.y)<=scan){mine.revealed[scanner.team]=true;this.stats[scanner.team].detected++;this.event('EAGLE-EYE DETECTED AN IED - '+this.placeName(mine),scanner.team)}}
+  if(this.training)return;
+  for(const mine of [...this.mines]){if(this.time<mine.armedAt)continue;if(this.units.some(unit=>unit.team!==mine.team&&unit.type!=='scanner'&&Math.hypot(unit.x-mine.x,unit.y-mine.y)<IED.trigger+unit.radius*.5))this.detonate(mine)}
+ }
+ detonate(mine){
+  this.mines=this.mines.filter(value=>value!==mine);
+  this.blasts.push({id:this.nextId('ied'),kind:'ied',team:mine.team,x:mine.x,y:mine.y,delay:0,age:0,radius:IED.radius,duration:1.15,hit:true});
+  for(const target of this.combatants()){if(target.team===mine.team||target.hp<=0)continue;const d=Math.hypot(target.x-mine.x,target.y-mine.y);if(d>IED.radius+target.radius)continue;
+   const falloff=1-.55*clamp(d/IED.radius,0,1),armor=['tank','patrol'].includes(target.type)||!this.units.includes(target)?.6:1;this.applyDamage(target,IED.damage*falloff*armor,mine.team)}
+  this.event('IED DETONATED - '+this.placeName(mine),mine.team);
+ }
+ visibleMines(team){return this.mines.filter(mine=>mine.team===team||mine.revealed[team]).map(mine=>({id:mine.id,team:mine.team,x:Math.round(mine.x),y:Math.round(mine.y),armed:this.time>=mine.armedAt}))}
+ // Plain-language location for the radio feed: road name in a theatre, else nearest objective.
+ placeName(point){
+  if(this.theatre){let best=null,nearest=80;for(const road of layouts['safe-haven'].roads){for(let i=1;i<road.points.length;i++){const [ax,ay]=road.points[i-1],[bx,by]=road.points[i],vx=bx-ax,vy=by-ay,t=clamp(((point.x-ax)*vx+(point.y-ay)*vy)/(vx*vx+vy*vy||1),0,1),d=Math.hypot(point.x-ax-vx*t,point.y-ay-vy*t);if(d<nearest){nearest=d;best=road}}}
+   if(best&&this.theatre.roads[best.id])return this.theatre.roads[best.id].toUpperCase()}
+  const node=[...this.nodes].sort((a,b)=>hypot(a,point)-hypot(b,point))[0];return node?'NEAR '+node.name:'IN THE FIELD';
+ }
+ // Insurgent infiltrators bury charges ahead of the assault on the roads into town.
+ plantInfiltrators(count){
+  if(!this.theatre||count<=0)return;const roads=layouts['safe-haven'].roads.filter(road=>['highway','evacuation','school-road','market-street'].includes(road.id));
+  for(let n=0,tries=0;n<count&&tries<60&&this.mines.filter(mine=>mine.team===1).length<8;tries++){
+   const road=roads[Math.floor(Math.random()*roads.length)],i=1+Math.floor(Math.random()*(road.points.length-1)),[ax,ay]=road.points[i-1],[bx,by]=road.points[i],t=Math.random(),x=ax+(bx-ax)*t,y=ay+(by-ay)*t;
+   if(x<1000||x>1980)continue;if(this.mines.some(mine=>Math.hypot(mine.x-x,mine.y-y)<140))continue;if([...this.facilities,...this.nodes,...this.structures].some(object=>Math.hypot(object.x-x,object.y-y)<(object.radius||40)+40))continue;
+   this.mines.push({id:this.nextId('ied'),team:1,x,y,armedAt:this.time+IED.arm,revealed:[false,false]});n++;
+  }
  }
  applyDamage(target,damage,attacker){
   if(this.training&&target.team===0)return;
@@ -154,8 +227,9 @@ class Game {
    if(this.training&&u.team===1)continue;
    if(u.type==='engineer'&&u.order==='repair'){
     const repairTarget=this.structures.find(value=>value.id===u.targetId&&value.team===u.team&&value.status==='active');if(!repairTarget||repairTarget.hp>=repairTarget.maxHp){u.order='hold';u.dest=null;u.targetId=null;u.hold=true;continue}const repairDistance=Math.hypot(u.x-repairTarget.x,u.y-repairTarget.y);if(repairDistance<=u.radius+repairTarget.radius+24){u.hold=true;const affordable=Math.min(32*dt,this.teams[u.team].credits*4);repairTarget.hp=Math.min(repairTarget.maxHp,repairTarget.hp+affordable);this.teams[u.team].credits=Math.max(0,this.teams[u.team].credits-affordable/4);if(repairTarget.hp>=repairTarget.maxHp){u.order='hold';u.dest=null;u.targetId=null;this.event(STRUCTURES[repairTarget.type].label.toUpperCase()+' REPAIRED',u.team)}continue}}
-   let target=u.targetId?[...this.units,...this.bases].find(t=>t.id===u.targetId&&t.hp>0&&t.team!==u.team):null;
-   if(!target&&u.order!=='move')target=this.closestEnemy(u,u.team,d.range+(u.order==='focus'?220:35));
+   const job=u.order==='plant'||u.order==='defuse'?this.stepIedJob(u,dt):null;if(job==='busy')continue;
+   let target=job?null:u.targetId?[...this.units,...this.bases].find(t=>t.id===u.targetId&&t.hp>0&&t.team!==u.team):null;
+   if(!job&&!target&&u.order!=='move')target=this.closestEnemy(u,u.team,d.range+(u.order==='focus'?220:35));
    if(target&&hypot(u,target)<=d.range){
     u.angle=Math.atan2(target.y-u.y,target.x-u.x);
     if(u.cd<=0){this.fire(u,target,d.damage,d.bulletSpeed,d.splash);u.cd=d.fireRate}
@@ -171,10 +245,12 @@ class Game {
    let separationX=0,separationY=0;
    for(const other of this.units){if(other===u)continue;const ox=u.x-other.x,oy=u.y-other.y,near=Math.hypot(ox,oy);if(near>0&&near<d.radius+other.radius+6){separationX+=ox/near*.7;separationY+=oy/near*.7}}
    for(const obstacle of this.structures.filter(value=>value.hp>0)){const ox=u.x-obstacle.x,oy=u.y-obstacle.y,near=Math.hypot(ox,oy),limit=d.radius+obstacle.radius+3;if(near>0&&near<limit){separationX+=ox/near*2.3;separationY+=oy/near*2.3}}
+   for(const mine of this.mines){if(mine.team===u.team||!mine.revealed[u.team]||u.type==='scanner')continue;const ox=u.x-mine.x,oy=u.y-mine.y,near=Math.hypot(ox,oy),limit=IED.trigger+d.radius+30;if(near>0&&near<limit){const push=2.6*(1-near/limit)+.9,side=u.dodge?.id===mine.id?u.dodge.side:(u.dodge={id:mine.id,side:(dx*oy-dy*ox)>=0?1:-1}).side;separationX+=ox/near*push-side*oy/near*1.6;separationY+=oy/near*push+side*ox/near*1.6}}
    const ax=dx/dist+separationX,ay=dy/dist+separationY,len=Math.hypot(ax,ay)||1;
    u.x=clamp(u.x+ax/len*speed,BOUNDS.left,BOUNDS.right);u.y=clamp(u.y+ay/len*speed,BOUNDS.top,BOUNDS.bottom);
    u.angle=Math.atan2(ay,ax);
   }
+  this.stepMines();
   for(const p of [...this.projectiles]){
    p.age+=dt;p.life-=dt;
    const target=this.combatants().find(t=>t.id===p.targetId&&t.hp>0);
@@ -229,13 +305,13 @@ class Game {
    if(structure.upgradeProgress){structure.upgradeProgress+=dt;if(structure.upgradeProgress>=5){structure.upgradeProgress=0;structure.level=2;structure.maxHp=Math.ceil(structure.maxHp*1.35);structure.hp=structure.maxHp;this.event(STRUCTURES[structure.type].label.toUpperCase()+' UPGRADED',structure.team)}}
    if(structure.type==='watchtower'){structure.cd-=dt;if(!this.training){const target=this.closestEnemy(structure,structure.team,STRUCTURES.watchtower.range+(structure.level-1)*35);if(target&&structure.cd<=0){this.fire(structure,target,STRUCTURES.watchtower.damage+(structure.level-1)*8,650,4);structure.cd=STRUCTURES.watchtower.fireRate}}}
    if(structure.type==='clinic'){const amount=STRUCTURES.clinic.heal*(structure.level===2?1.45:1)*dt;for(const unit of this.units.filter(unit=>unit.team===structure.team&&unit.hp<unit.maxHp&&Math.hypot(unit.x-structure.x,unit.y-structure.y)<155))unit.hp=Math.min(unit.maxHp,unit.hp+amount)}
-   if((structure.type==='workshop'||structure.type==='barracks')&&structure.production){structure.production.progress+=dt;if(structure.production.progress>=structure.production.duration){const produced=structure.production.type,offset=structure.radius+36;this.stats[structure.team].trained++;this.spawnAt(structure.team,produced,structure.x+(structure.team===0?offset:-offset),structure.y);structure.production=null;this.event(produced==='rifle'?'INFANTRY SQUAD READY':'PROTECTED PATROL VEHICLE DEPLOYED',structure.team)}}
+   if((structure.type==='workshop'||structure.type==='barracks')&&structure.production){structure.production.progress+=dt;if(structure.production.progress>=structure.production.duration){const produced=structure.production.type,offset=structure.radius+36;this.stats[structure.team].trained++;this.spawnAt(structure.team,produced,structure.x+(structure.team===0?offset:-offset),structure.y);structure.production=null;this.event(produced==='rifle'?'INFANTRY SQUAD READY':produced==='scanner'?'EAGLE-EYE SCANNER DEPLOYED':'PROTECTED PATROL VEHICLE DEPLOYED',structure.team)}}
   }
  }
  spawnMissionWave(intensity=0){
   if(!this.mission||this.training)return;const mission=this.mission,plan=WAVE_PLAN[this.difficulty]||WAVE_PLAN.recruit;mission.wave++;mission.waveClock=0;
-  let count=Math.min(plan.max,Math.round(plan.base+plan.grow*(mission.wave-1)))+intensity*2;if(mission.guided&&mission.wave===1)count=2;
-  const types=[];for(let index=0;index<count;index++)types.push(mission.wave>=3&&index%4===3?'tank':mission.wave>=2&&index%3===2?'rocket':'rifle');
+  let count=Math.round((Math.min(plan.max,Math.round(plan.base+plan.grow*(mission.wave-1)))+intensity*2)*(this.theatre?.threat.waves||1));if(mission.guided&&mission.wave===1)count=2;
+  const types=[];for(let index=0;index<count;index++)types.push(mission.wave>=3&&index%4===3?'tank':mission.wave>=2&&index%3===2?'rocket':'rifle');if(this.theatre?.threat.sweepers&&mission.wave>=3&&mission.wave%2===1)types.splice(1,0,'scanner');if(mission.wave>=2&&Math.random()<(this.theatre?.threat.ied||0)*.65)this.plantInfiltrators(mission.wave>=4?2:1);
   for(let index=0;index<types.length;index++){const lane=LANES[(index+mission.wave)%LANES.length],unit=this.spawnAt(1,types[index],2080+(index%3)*34,lane+((index*53)%90)-45);unit.order='attackmove';unit.hold=false;unit.dest=this.missionTarget(unit)}
   this.event('HOSTILE WAVE '+mission.wave+' APPROACHING THE TOWN',1);
  }
@@ -258,16 +334,18 @@ class Game {
   else if(mission.stage==='final'){const shelters=this.facilities.filter(value=>value.hp>0&&value.kind==='community').length;mission.evacuated=Math.min(mission.residents,mission.evacuated+dt*mission.residents/70*(.5+.25*shelters));if(mission.stageTime>=70&&this.facilities.filter(value=>value.hp>0).length>=mission.facilitiesRequired){mission.evacuated=Math.max(mission.evacuated,Math.round(mission.residents*this.facilities.filter(value=>value.hp>0).length/4));this.end(0,'CIVILIANS EVACUATED - SAFETY RESTORED')}}
  }
  aiAction(team){if(this.phase!=='playing')return;
-  if(this.mission){for(const unit of this.units.filter(value=>value.team===team)){if(unit.order==='focus'&&unit.targetId)continue;unit.order='attackmove';unit.dest=this.missionTarget(unit);unit.hold=false}return}
+  if(this.mission){for(const unit of this.units.filter(value=>value.team===team)){if(unit.order==='focus'&&unit.targetId||unit.order==='plant'||unit.order==='defuse')continue;if(unit.type==='scanner'){const charge=this.mines.filter(mine=>mine.team!==team&&mine.revealed[team]&&hypot(unit,mine)<520).sort((a,b)=>hypot(unit,a)-hypot(unit,b))[0];if(charge){this.defuseIed(team,[unit.id],charge.id);continue}}unit.order='attackmove';unit.dest=this.missionTarget(unit);unit.hold=false}return}
   const t=this.teams[team],supply=this.supply(team);
   const easy=this.mode==='solo'&&this.difficulty==='recruit';
   if(easy&&this.time<20)return;
   const maxAiSupply=easy?21:this.difficulty==='standard'?32:42;
-  if(supply<maxAiSupply){const options=easy?['rifle','rifle','rifle','tank']:this.time>50?['tank','tank','rocket','rifle','rifle']:['rifle','rifle','tank','rocket'];
+  if(supply<maxAiSupply){const options=easy?['rifle','rifle','rifle','tank']:this.time>50?['tank','tank','rocket','rifle','rifle',...(this.units.some(u=>u.team===team&&u.type==='scanner')?[]:['scanner'])]:['rifle','rifle','tank','rocket'];
    const type=options[Math.floor(Math.random()*options.length)];if(t.credits>=UNITS[type].cost)this.spawn(team,type)}
   const owned=this.nodes.filter(n=>n.owner===team);const desired=this.nodes.filter(n=>n.owner!==team);
+  if(!easy&&owned.length&&t.credits>=IED.cost+70&&this.activeCharges(team)<4&&Math.random()<.16){const node=owned[Math.floor(Math.random()*owned.length)],planter=this.units.filter(u=>u.team===team&&u.type==='rifle'&&u.order!=='plant').sort((a,b)=>hypot(a,node)-hypot(b,node))[0];if(planter&&hypot(planter,node)<420)this.plantIed(team,[planter.id],node.x+(team===1?-150:150)+rnum(-50,50),node.y+rnum(-90,90))}
+  for(const scanner of this.units.filter(u=>u.team===team&&u.type==='scanner'&&u.order!=='defuse')){const charge=this.mines.find(mine=>mine.team!==team&&mine.revealed[team]&&hypot(scanner,mine)<560);if(charge)this.defuseIed(team,[scanner.id],charge.id)}
   for(const u of this.units.filter(u=>u.team===team)){
-   if(u.order==='focus'&&u.targetId)continue;
+   if(u.order==='focus'&&u.targetId||u.order==='plant'||u.order==='defuse')continue;
    const dest=desired.length?desired.reduce((a,b)=>Math.abs(b.x-u.x)+Math.abs(b.y-u.y)<Math.abs(a.x-u.x)+Math.abs(a.y-u.y)?b:a):this.bases.find(b=>b.team!==team&&b.kind==='hq');
    if(!dest)continue;
    const nearDist=Math.hypot(u.x-dest.x,u.y-dest.y);
@@ -279,13 +357,13 @@ class Game {
   if(!desired.length&&owned.length===this.nodes.length&&this.time>40){for(const u of this.units.filter(u=>u.team===team)){u.dest={x:team===0?2090:310,y:rnum(420,930)};u.order='attackmove'}}
  }
  end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(teamName(winner)+' WINS — '+reason,winner)}
- snapshot(){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0),nextWaveIn:Math.ceil(this.mission.nextWaveIn||0),evacuated:Math.floor(this.mission.evacuated||0)}:null,stats:this.stats.map(value=>({...value})),world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
+ snapshot(viewTeam=null){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,theatreId:this.theatreId,mines:viewTeam===null?[]:this.visibleMines(viewTeam),mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0),nextWaveIn:Math.ceil(this.mission.nextWaveIn||0),evacuated:Math.floor(this.mission.evacuated||0)}:null,stats:this.stats.map(value=>({...value})),world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
-  units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order,dest:u.dest?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null})),
+  units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order,dest:u.dest&&u.order!=='plant'?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null,job:u.job&&(u.order==='plant'||u.order==='defuse')?Math.round(100*u.job.progress/(u.order==='plant'?IED.plantTime:IED.defuseTime)):null})),
   bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius})),
   structures:this.structures.map(structure=>({...structure,hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
   nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
-  blasts:this.blasts.map(b=>({id:b.id,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
+  blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }
 }
 module.exports={Game};
