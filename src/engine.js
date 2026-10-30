@@ -3,6 +3,7 @@ const {W,H,BOUNDS,UNITS,STRUCTURES,IED,START_CREDITS,MAX_SUPPLY,MAX_TIME,WIN_SCO
 const {blockers:sceneryBlockers,theatre:getTheatre,theatreIds,layouts,territoryOf}=require('../public/maps');
 const {territory:territoryMethods,PREP_CHOICES}=require('./territory');
 const {civilians:civilianMethods}=require('./civilians');
+const {intel:intelMethods}=require('./intel');
 const {CATALOG}=require('./config');
 // Safe Haven assault pacing per difficulty: seconds between waves, opening size, growth per wave and cap.
 const WAVE_PLAN={recruit:{gap:24,base:2,grow:1,max:6},standard:{gap:18,base:3,grow:1.4,max:9},veteran:{gap:13,base:4,grow:2,max:12}};
@@ -257,7 +258,7 @@ class Game {
   if(this.phase!=='playing')return;
   dt=clamp(dt,0,0.12);if(!this.training)this.time+=dt;this.aiClock+=dt;this.incomeClock+=dt;
   const ceasefire=this.ceasefire();
-  for(const b of this.bases){if(b.hp<=0)continue;b.cd-=dt;if(this.training||ceasefire)continue;const target=this.closestEnemy(b,b.team,b.range);if(target&&b.cd<=0){this.fire(b,target,b.kind==='hq'?22:25,575,9);b.cd=b.kind==='hq'?0.65:1.0}}
+  for(const b of this.bases){if(b.hp<=0||b.hackedUntil>this.time)continue;b.cd-=dt;if(this.training||ceasefire)continue;const target=this.closestEnemy(b,b.team,b.range);if(target&&b.cd<=0){this.fire(b,target,b.kind==='hq'?22:25,575,9);b.cd=b.kind==='hq'?0.65:1.0}}
   this.stepStructures(dt);
   for(const u of [...this.units]){
    const d=UNITS[u.type];u.cd-=dt;
@@ -289,7 +290,7 @@ class Game {
    u.x=nx;u.y=ny;
    u.angle=Math.atan2(ay,ax);
   }
-  if(this.scenario==='territory')this.stepCivilians(dt);
+  if(this.scenario==='territory'){this.stepCivilians(dt);this.stepIntel(dt)}
   this.stepMines();
   for(const p of [...this.projectiles]){
    p.age+=dt;p.life-=dt;
@@ -350,11 +351,12 @@ class Game {
     continue;
    }
    if(structure.upgradeProgress){structure.upgradeProgress+=dt;if(structure.upgradeProgress>=5){structure.upgradeProgress=0;structure.level=2;structure.maxHp=Math.ceil(structure.maxHp*1.35);structure.hp=structure.maxHp;this.event(STRUCTURES[structure.type].label.toUpperCase()+' UPGRADED',structure.team)}}
-   const def=STRUCTURES[structure.type];
+   const def=STRUCTURES[structure.type];if(structure.hackedUntil>this.time)continue;
    if(def.damage){structure.cd-=dt;if(!this.training&&!this.ceasefire()){const target=this.closestEnemy(structure,structure.team,def.range+(structure.level-1)*35);if(target&&structure.cd<=0){this.fire(structure,target,def.damage+(structure.level-1)*8,650,def.splash||4);structure.cd=def.fireRate}}}
    if(structure.type==='clinic'){const amount=STRUCTURES.clinic.heal*(structure.level===2?1.45:1)*dt;for(const unit of this.units.filter(unit=>unit.team===structure.team&&unit.hp<unit.maxHp&&Math.hypot(unit.x-structure.x,unit.y-structure.y)<155))unit.hp=Math.min(unit.maxHp,unit.hp+amount)}
   }
   for(const producer of [...this.structures.filter(s=>s.status==='active'),...this.bases.filter(b=>b.kind==='hq'&&b.hp>0)]){
+   if(producer.hackedUntil>this.time)continue;
    if(!producer.production)this.startNextProduction(producer);
    if(!producer.production)continue;producer.production.progress+=dt;if(producer.production.progress<producer.production.duration)continue;
    const produced=producer.production.type,offset=producer.radius+36,dir=producer.team===0?1:-1;this.stats[producer.team].trained++;const unit=this.spawnAt(producer.team,produced,producer.x+dir*offset,producer.y+(producer.kind==='hq'?rnum(-50,50):0));if(unit)unit.angle=producer.team===0?0:Math.PI;producer.production=null;this.startNextProduction(producer);
@@ -412,12 +414,12 @@ class Game {
  end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(this.teamName(winner)+' WINS — '+reason,winner)}
  snapshot(viewTeam=null){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,scenario:this.scenario,territory:this.territorySnapshot(),theatreId:this.theatreId,mode:this.mode,mines:viewTeam===null?[]:this.visibleMines(viewTeam),mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0),nextWaveIn:Math.ceil(this.mission.nextWaveIn||0),evacuated:Math.floor(this.mission.evacuated||0)}:null,stats:this.stats.map(value=>({...value})),world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),supplyCap:this.supplyCap(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
-  units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:Math.round(u.angle*100)/100,order:u.order,dest:u.dest&&u.order!=='plant'?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null,job:u.job&&(u.order==='plant'||u.order==='defuse')?Math.round(100*u.job.progress/(u.order==='plant'?IED.plantTime:IED.defuseTime)):null})),
-  bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius,production:b.production?{...b.production,progress:Math.round(b.production.progress*10)/10}:null,queue:b.queue?[...b.queue]:[],waiting:b.waiting||null})),
-  structures:this.structures.map(structure=>({...structure,queue:structure.queue?[...structure.queue]:[],hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
+  units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:Math.round(u.angle*100)/100,order:u.order,dest:u.dest&&u.order!=='plant'?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null,job:u.job&&(u.order==='plant'||u.order==='defuse')?Math.round(100*u.job.progress/(u.order==='plant'?IED.plantTime:IED.defuseTime)):null,hack:u.hack?{id:u.hack.id,p:Math.round(u.hack.progress*20)/100,blocked:Boolean(u.hack.blocked)}:undefined})),
+  bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius,production:b.production?{...b.production,progress:Math.round(b.production.progress*10)/10}:null,queue:b.queue?[...b.queue]:[],waiting:b.waiting||null,hacked:b.hackedUntil>this.time?Math.ceil(b.hackedUntil-this.time):0})),
+  structures:this.structures.map(structure=>({...structure,hackedUntil:undefined,hacked:structure.hackedUntil>this.time?Math.ceil(structure.hackedUntil-this.time):0,queue:structure.queue?[...structure.queue]:[],hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
   nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
-  blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),civilians:this.civilianSnapshot(),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
+  blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),civilians:this.civilianSnapshot(),intel:this.scenario==='territory'?this.intelSnapshot():null,participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }
 }
-Object.assign(Game.prototype,territoryMethods,civilianMethods);
+Object.assign(Game.prototype,territoryMethods,civilianMethods,intelMethods);
 module.exports={Game};

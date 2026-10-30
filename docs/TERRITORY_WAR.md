@@ -54,6 +54,20 @@ Every producer (HQ for engineers, barracks, workshop, factory) has a queue of up
 
 The objective chip shows how many civilians are safe, taken and lost; results show civilians safe, captives rescued or seized, and casualties from your own fire.
 
+## Intelligence and electronic warfare (`src/intel.js`)
+
+The Communications Centre (raiders: Radio Shack) trains a **Cyber Team** (raiders: **Hack Cell**): 130 CR, 1 supply, 70 HP, unarmed, 7 s.
+
+| Rule | Detail |
+|---|---|
+| Intrusion | A hacker within 150 px of an enemy building or HQ (or ordered to attack one) hacks it in 5 s, then cools down for 8 s. Only while the battle is live. |
+| Offline (20 s) | Production and queues freeze; defences and HQ guns stop firing; collectors stop earning. Hacked buildings show a red ring and an *OFFLINE · HACKED* tag; hackers show a data beam to their target. |
+| Comms hack | The victim is **jammed** for 20 s: scrambled minimap, pings refused. When the defence breaks into the raider Radio Shack it also **intercepts**: every raider IED is exposed and the next assault route is reported as confirmed. |
+| Counters | Any of the target side's hackers within 210 px is a **firewall** (the beam turns amber and progress stops). Damaging a hacker resets its progress. |
+| AI | Standard keeps 1 hacker, Veteran 2; they travel with assaults and hack whatever they reach. |
+
+Raider systems overall: IED charges, kidnapping and ransom income, hack cells and comms jamming.
+
 ## AI (`src/ai.js`)
 
 One `FactionAI` plays either side with the human rules (plots, tech, costs, supply, ceasefire).

@@ -559,3 +559,8 @@ body:not(.in-battle) .comms:not(.in-lobby){display:none}
 @media (max-height:520px){.comms{bottom:calc(var(--sab,0px) + 78px);width:min(300px,calc(100vw - 24px))}.chat-log{max-height:84px}.comms-btn span{display:none}}
 @media (max-width:640px){.sides{grid-template-columns:1fr}}
 .chat-log:empty{display:none}
+/* Comms jammed by an enemy hack: scrambled minimap and pings unavailable. */
+body.jammed .minimap{position:relative;filter:grayscale(.8) contrast(1.4) brightness(.8);animation:jamFlicker .18s steps(2) infinite}
+body.jammed .minimap::after{content:"SIGNAL JAMMED";position:absolute;inset:0;display:grid;place-items:center;font:900 13px var(--display,inherit);letter-spacing:.2em;color:#ff6a4a;background:repeating-linear-gradient(0deg,rgba(255,255,255,.08) 0 2px,transparent 2px 4px);pointer-events:none}
+body.jammed #ping-toggle{opacity:.45;pointer-events:none}
+@keyframes jamFlicker{50%{opacity:.85}}

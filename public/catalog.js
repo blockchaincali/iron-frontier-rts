@@ -13,7 +13,7 @@
   // Command and infrastructure
   depot:{label:'Supply Depot',raider:'Supply Cache',category:'command',size:'large',cost:100,buildTime:8,hp:520,radius:40,supply:15,icon:'supply',role:'+15 army capacity'},
   collector:{label:'Resource Collector',raider:'Scavenger Yard',category:'command',size:'large',cost:140,buildTime:10,hp:560,radius:42,income:6,resourceOnly:true,icon:'credits',role:'+6 credits/s on a resource site'},
-  comms:{label:'Communications Centre',raider:'Radio Shack',category:'command',size:'large',cost:160,buildTime:10,hp:600,radius:42,requires:['barracks'],energy:1.2,icon:'intel',role:'Unlocks armour and emplacements · +energy'},
+  comms:{label:'Communications Centre',raider:'Radio Shack',category:'command',size:'large',cost:160,buildTime:10,hp:600,radius:42,requires:['barracks'],energy:1.2,produces:['hacker'],icon:'intel',role:'Unlocks armour and emplacements · trains hackers · +energy'},
   // Defence
   barricade:{label:'Barricade',raider:'Barricade',category:'defence',size:'small',cost:55,buildTime:4,hp:520,radius:34,icon:'barricade',role:'Blocks hostile vehicles and protects a lane'},
   guardpost:{label:'Guard Post',raider:'Lookout Post',category:'defence',size:'small',cost:70,buildTime:5,hp:380,radius:26,range:190,damage:10,fireRate:.7,icon:'hold',role:'Light automatic defence'},
@@ -29,10 +29,10 @@
  };
  const CATEGORIES=[{id:'command',label:'Command'},{id:'defence',label:'Defence'},{id:'production',label:'Production'}];
  // Production times (seconds) and the faction names for each unit.
- const PRODUCTION={engineer:{time:6,from:'hq'},rifle:{time:4.5,from:'barracks'},patrol:{time:8,from:'workshop'},scanner:{time:7,from:'workshop'},tank:{time:11,from:'factory'},rocket:{time:10,from:'factory'}};
+ const PRODUCTION={engineer:{time:6,from:'hq'},rifle:{time:4.5,from:'barracks'},patrol:{time:8,from:'workshop'},scanner:{time:7,from:'workshop'},tank:{time:11,from:'factory'},rocket:{time:10,from:'factory'},hacker:{time:7,from:'comms'}};
  const UNIT_NAMES={
-  0:{engineer:'Engineer',rifle:'Response Squad',patrol:'Protected Patrol',scanner:'Eagle-Eye Scanner',tank:'Siege Tank',rocket:'Rocket Battery'},
-  1:{engineer:'Sapper',rifle:'Fighters',patrol:'Technical',scanner:'Sweeper',tank:'Armoured Truck',rocket:'Rocket Truck'}
+  0:{engineer:'Engineer',rifle:'Response Squad',patrol:'Protected Patrol',scanner:'Eagle-Eye Scanner',tank:'Siege Tank',rocket:'Rocket Battery',hacker:'Cyber Team'},
+  1:{engineer:'Sapper',rifle:'Fighters',patrol:'Technical',scanner:'Sweeper',tank:'Armoured Truck',rocket:'Rocket Truck',hacker:'Hack Cell'}
  };
  const FACTIONS=[{id:'defence',name:'Community Defence',short:'DEFENCE'},{id:'raiders',name:'Black Harmattan Raiders',short:'RAIDERS'}];
  const name=(type,team)=>{const s=STRUCTURES[type];if(!s)return type==='hq'?(team===1?'Raider Camp':'Command HQ'):type;return team===1&&s.raider?s.raider:s.label};

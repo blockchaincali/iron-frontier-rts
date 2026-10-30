@@ -81,7 +81,7 @@ const territory={
   }
  },
  territoryIncome(seconds){
-  for(let team=0;team<2;team++){const own=this.structures.filter(s=>s.team===team&&s.status==='active'&&s.hp>0),checkpoints=this.nodes.filter(n=>n.owner===team).length;
+  for(let team=0;team<2;team++){const own=this.structures.filter(s=>s.team===team&&s.status==='active'&&s.hp>0&&!(s.hackedUntil>this.time)),checkpoints=this.nodes.filter(n=>n.owner===team).length;
    const income=8+own.filter(s=>s.type==='collector').length*STRUCTURES.collector.income+checkpoints*4+(team===0&&this.facilities.some(f=>f.kind==='market'&&f.hp>0)?3:0);
    this.teams[team].credits=Math.min(CREDIT_CAP,this.teams[team].credits+income*seconds);
    this.teams[team].energy=Math.min(180,this.teams[team].energy+(1+own.filter(s=>s.type==='comms').length*STRUCTURES.comms.energy)*seconds);

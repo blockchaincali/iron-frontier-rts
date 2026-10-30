@@ -65,6 +65,7 @@ function chat(ws,room,player,msg){
 function ping(ws,room,player,msg){
  const x=Number(msg.x),y=Number(msg.y),kind=PING_KINDS.includes(msg.kind)?msg.kind:'look',now=Date.now();
  if(!Number.isFinite(x)||!Number.isFinite(y)||x<0||y<0||x>2400||y>1350||room.game.phase!=='playing')return;
+ if(room.game.jammed?.(player.team))return send(ws,{type:'notice',message:'Communications jammed - pings are down until the comms centre is back online'});
  if(now-(player.lastPing||0)<PING_GAP)return;player.lastPing=now;
  const message={type:'ping',x:Math.round(x),y:Math.round(y),kind,from:player.id,name:player.name,team:player.team,at:now};
  for(const p of participants(room))if(!p.bot&&p.team===player.team)send(room.sockets.get(p.id),message);
