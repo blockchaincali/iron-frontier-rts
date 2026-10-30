@@ -20,6 +20,7 @@
  function tone(at,dur,{freq=440,to=null,wave='sine',peak=.3,attack=.01}={}){const osc=ctx.createOscillator();osc.type=wave;osc.frequency.setValueAtTime(freq,at);if(to)osc.frequency.exponentialRampToValueAtTime(to,at+dur);const gain=ctx.createGain();env(gain,at,peak,attack,dur);osc.connect(gain).connect(master);osc.start(at);osc.stop(at+attack+dur+.05)}
  const SOUNDS={
   click:t=>tone(t,.06,{freq:880,to:660,wave:'triangle',peak:.12}),
+  ping:t=>{tone(t,.12,{freq:880,to:1320,wave:'triangle',peak:.12});tone(t+.13,.16,{freq:1320,wave:'sine',peak:.08})},
   radio:t=>{noise(t,.16,{type:'bandpass',freq:1800,q:2,peak:.16});tone(t+.14,.08,{freq:1320,wave:'square',peak:.05});noise(t+.22,.1,{type:'bandpass',freq:2400,q:3,peak:.08})},
   detect:t=>{tone(t,.32,{freq:1240,to:1180,peak:.2});tone(t+.36,.5,{freq:1240,to:1100,peak:.16});tone(t+.36,.5,{freq:1860,peak:.05})},
   ied:t=>{noise(t,1.6,{freq:900,sweepTo:60,peak:.95,attack:.004});tone(t,1.1,{freq:90,to:28,peak:.85,attack:.004});noise(t+.05,.5,{type:'highpass',freq:2600,peak:.18})},
@@ -31,7 +32,7 @@
   victory:t=>{[523,659,784,1047].forEach((f,i)=>tone(t+i*.16,.5,{freq:f,wave:'triangle',peak:.16}))},
   defeat:t=>{[392,330,262].forEach((f,i)=>tone(t+i*.22,.6,{freq:f,wave:'triangle',peak:.14}))}
  };
- const GAPS={shot:.045,cannon:.12,detect:.6,ied:.08,click:.03,radio:.4};
+ const GAPS={ping:.25,shot:.045,cannon:.12,detect:.6,ied:.08,click:.03,radio:.4};
  function play(name){if(muted||!init()||ctx.state!=='running')return;const fn=SOUNDS[name];if(!fn)return;const t=now(),gap=GAPS[name]||0;if(gap&&t-(last.get(name)||-9)<gap)return;last.set(name,t);try{fn(t+.01)}catch{}}
  // Battlefield bed: Harmattan wind with distant insects. Quiet enough to sit under the radio.
  function startAmbient(){if(ambient||!init())return;try{const src=ctx.createBufferSource();src.buffer=noiseBuffer;src.loop=true;const filter=ctx.createBiquadFilter();filter.type='lowpass';filter.frequency.value=420;const gain=ctx.createGain();gain.gain.value=.06;const lfo=ctx.createOscillator(),lfoGain=ctx.createGain();lfo.frequency.value=.07;lfoGain.gain.value=180;lfo.connect(lfoGain).connect(filter.frequency);src.connect(filter).connect(gain).connect(master);src.start();lfo.start();

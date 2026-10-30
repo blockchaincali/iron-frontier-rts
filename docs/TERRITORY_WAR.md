@@ -67,6 +67,15 @@ One `FactionAI` plays either side with the human rules (plots, tech, costs, supp
 
 PvP matches never use AI or difficulty scaling.
 
+## Multiplayer: co-commanders, chat and pings
+
+- **Co-op vs AI** (Missions → Territory War → *Co-op vs AI*): the host's room waits in the lobby; one friend joins the host's faction and the AI commands the other side at the chosen difficulty.
+- **Versus** (*Host versus*): up to four commanders, two seats per side. Joiners take the side with fewer commanders.
+- Commanders on the same side share one army, treasury and supply. Ready-up needs every human commander (vs AI: only your own side). If one co-commander leaves mid-battle, the other keeps command and the match continues.
+- **Chat**: team chat by default, *ALL* toggles to everyone; lobby chat goes to everyone. Quick phrases for touch play. Messages are plain text (rendered with `textContent`), capped at 140 characters, stripped of control characters, lightly filtered and limited to 5 messages per 8 seconds. Reconnecting players get the last 40 messages they are allowed to see.
+- **Pings**: *Ping* → Attack / Defend / Help / Look, then tap the map. Teammates see a pulsing beacon with your name in 3D, a ring on the minimap and a toast; the other side never sees them. One ping per 1.2 s, coordinates validated.
+- Press **Enter** in battle to open chat. The comms panel only appears when more than one human is in the room.
+
 ## Server and security
 
 `create` validates scenario, faction, prep length (3/5), difficulty and city; the guest of a private room takes the free faction. New `assist` action. Every construction, production, command and strike is validated server-side against faction, plot ownership, build area, tech and ceasefire. Each player only receives their own faction's private events (production, construction) and their own and detected IEDs.

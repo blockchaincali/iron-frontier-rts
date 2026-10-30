@@ -40,13 +40,22 @@ const territory={
  },
  // Host (solo) or both commanders (PvP) may cut the preparation short; it always moves to the
  // two-minute warning, never straight into combat.
- territoryReady(team){
+ // Every human commander must be ready. With a human opponent the warning can never be skipped.
+ territoryReady(team,playerId=null){
   const t=this.territory;if(!t)return {ok:false,reason:'No territory battle'};
+  // Against the AI only the commanders sharing the caller's side are asked.
+  const humans=this.participants.filter(p=>!p.bot&&(this.mode==='pvp'||p.team===team)),me=humans.find(p=>p.id===playerId)||humans.find(p=>p.team===team);
   if(t.stage==='prepare'){
-   if(this.mode==='pvp'){t.ready=t.ready||[false,false];t.ready[team]=true;if(!t.ready.every(Boolean)){this.event(this.teamName(team)+' IS READY - WAITING FOR THE OTHER COMMANDER',team);return {ok:true,waiting:true}}}
+   t.readyBy=t.readyBy||[];if(me&&!t.readyBy.includes(me.id))t.readyBy.push(me.id);
+   t.ready=[0,1].map(side=>{const own=this.participants.filter(p=>p.team===side);return own.length>0&&own.every(p=>p.bot||t.readyBy.includes(p.id))});
+   const waiting=humans.filter(p=>!t.readyBy.includes(p.id));
+   if(waiting.length){this.event((me?me.name.toUpperCase():this.teamName(team))+' IS READY - WAITING FOR '+(waiting.length===1?waiting[0].name.toUpperCase():waiting.length+' COMMANDERS'),null);return {ok:true,waiting:true}}
    this.toWarning();return {ok:true};
   }
-  if(t.stage==='warning'){if(this.mode==='pvp')return {ok:false,reason:'The warning period cannot be skipped in multiplayer'};this.toLive();return {ok:true}}
+  if(t.stage==='warning'){if(this.mode==='pvp')return {ok:false,reason:'The warning period cannot be skipped in multiplayer'};
+   t.skipBy=t.skipBy||[];if(me&&!t.skipBy.includes(me.id))t.skipBy.push(me.id);const waiting=humans.filter(p=>!t.skipBy.includes(p.id));
+   if(waiting.length){this.event((me?me.name.toUpperCase():'A COMMANDER')+' WANTS TO START - WAITING FOR '+waiting[0].name.toUpperCase(),null);return {ok:true,waiting:true}}
+   this.toLive();return {ok:true}}
   return {ok:false,reason:'The battle is already live'};
  },
  toWarning(){
@@ -115,7 +124,7 @@ const territory={
  territorySnapshot(){
   const t=this.territory;if(!t)return null;
   const remaining=t.stage==='prepare'?t.prepDuration-t.stageTime:t.stage==='warning'?t.warningDuration-t.stageTime:t.liveTime;
-  return {stage:t.stage,remaining:Math.max(0,Math.ceil(remaining)),prepDuration:t.prepDuration,warningDuration:t.warningDuration,liveDuration:t.liveDuration,winPoints:t.winPoints,threat:t.threat,ready:t.ready||null,
+  return {stage:t.stage,remaining:Math.max(0,Math.ceil(remaining)),prepDuration:t.prepDuration,warningDuration:t.warningDuration,liveDuration:t.liveDuration,winPoints:t.winPoints,threat:t.threat,ready:t.ready||null,readyBy:t.readyBy||[],skipBy:t.skipBy||[],
    ai:[...this.ais.values()].map(ai=>({team:ai.team,level:ai.level}))};
  }
 };
