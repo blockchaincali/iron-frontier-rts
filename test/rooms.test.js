@@ -40,5 +40,19 @@ test('Solo tutorial protection is authoritative and ends only on trainee command
 });
 test('Safe Haven mission identity and construction commands remain server authoritative',()=>{
  const ws=wss.connect();ws.receive({type:'create',mode:'solo',difficulty:'recruit',missionId:'safe-haven',mapId:'frozen',name:'Coordinator'});const joined=ws.last('joined'),room=rooms.get(joined.code),engineer=room.game.units.find(unit=>unit.type==='engineer');assert.equal(room.game.missionId,'safe-haven');assert.equal(room.game.mapId,'safe-haven');assert.equal(room.game.training,true);
- ws.receive({type:'construct',structureType:'watchtower',x:420,y:680,builderIds:['forged']});assert.match(ws.last('notice').message,/engineer/i);ws.receive({type:'construct',structureType:'barricade',x:420,y:680,builderIds:[engineer.id]});assert.equal(room.game.structures.length,1);assert.equal(room.game.structures[0].team,0);
+ ws.receive({type:'construct',structureType:'barricade',x:420,y:680,builderIds:['forged']});assert.equal(room.game.structures.length,1);assert.equal(room.game.structures[0].team,0);assert.ok(room.game.units.some(unit=>unit.id===room.game.structures[0].builderId&&unit.team===0&&unit.type==='engineer'),'forged ids never build; the server assigns one of your own engineers');ws.receive({type:'construct',structureType:'watchtower',x:4000,y:680});assert.match(ws.last('notice').message,/boundary/i);assert.equal(room.game.structures.length,1);
+});
+test('Territory War rooms honour the chosen faction, give the guest the other side and validate options',()=>{
+ const solo=wss.connect();solo.receive({type:'create',mode:'solo',scenario:'territory',faction:'raiders',prepMinutes:3,difficulty:'veteran',theatreId:'kano',name:'Raider'});
+ const room=rooms.get(solo.last('joined').code),g=room.game;assert.equal(g.scenario,'territory');assert.equal(g.mapId,'frontier');assert.equal(solo.last('joined').team,1);
+ assert.equal(g.participants.find(p=>p.bot).team,0,'the AI takes the defence');assert.equal(g.territory.prepDuration,180);assert.equal(g.theatreId,'kano');assert.equal(g.difficulty,'veteran');
+ const state=solo.last('state');assert.equal(state.team,1);assert.equal(state.territory.stage,'prepare');assert.equal(state.teams[1].supplyCap,20);
+ solo.receive({type:'build',unitType:'engineer'});assert.equal(g.bases.find(b=>b.team===1).production?.type,'engineer');
+ solo.receive({type:'construct',structureType:'barracks',x:0,y:0,plotId:'rA'});assert.ok(g.structures.some(s=>s.team===1&&s.plotId==='rA'));
+ solo.receive({type:'construct',structureType:'depot',x:0,y:0,plotId:'dA'});assert.match(solo.last('notice').message,/other faction/);
+ const host=wss.connect(),guest=wss.connect();host.receive({type:'create',mode:'pvp',scenario:'territory',faction:'raiders',prepMinutes:7,name:'Host'});const code=host.last('joined').code;
+ guest.receive({type:'join',code,name:'Guest'});assert.equal(guest.last('joined').team,0);const pvp=rooms.get(code).game;assert.equal(pvp.prepMinutes,5,'invalid prep falls back to five minutes');
+ host.receive({type:'start'});assert.equal(pvp.phase,'playing');host.receive({type:'trainingComplete'});assert.equal(pvp.territory.stage,'prepare');guest.receive({type:'trainingComplete'});assert.equal(pvp.territory.stage,'warning');
+ // Reconnect restores the same faction and match.
+ const id=guest.last('joined').id,again=wss.connect();again.receive({type:'join',code,id});assert.equal(again.last('joined').team,0);assert.equal(again.last('state').territory.stage,'warning');
 });

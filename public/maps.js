@@ -8,6 +8,7 @@
   coastal:{id:'coastal',name:'Coastal Frontier',tagline:'Tropical command coast',description:'Fight from fortified shores through palms, relay roads, and a deep-water naval frontier.',seed:0x43a91f2d,colors:{ground:'#536348',road:'#4d5150',water:'#0d7086',accent:'#49d5c9',minimap:'#315d48'},atmosphere:{fog:0x718a8b,skyTop:'#183541',skyMid:'#53747a',skyLow:'#d4ae7b',sun:0xffd09a}},
   desert:{id:'desert',name:'Desert Front',tagline:'Canyon strike corridor',description:'Command armored columns between wind-cut mesas, dunes, dusty outposts, and sparse desert scrub.',seed:0xd35e7a11,colors:{ground:'#ad824c',road:'#655341',water:'#8f673d',accent:'#ffbb66',minimap:'#a47745'},atmosphere:{fog:0xc28d5e,skyTop:'#53382f',skyMid:'#c27d55',skyLow:'#f1c98b',sun:0xffbd78}},
   frozen:{id:'frozen',name:'Frozen Territory',tagline:'Glacial relay basin',description:'Advance across snowfields, frozen rivers, black-rock cliffs, winter pines, and isolated polar facilities.',seed:0xf20a6e91,colors:{ground:'#c5d5d7',road:'#58646a',water:'#83c7d8',accent:'#9cecff',minimap:'#a8c8cf'},atmosphere:{fog:0xa9c5ce,skyTop:'#233b55',skyMid:'#6f91a4',skyLow:'#dcecf0',sun:0xd9efff}}
+  ,frontier:{id:'frontier',name:'Territory War',tagline:'Two territories, one community',description:'Build up your territory, hold the contested routes and protect or raid the town between the lines.',seed:0x7e3f0a51,colors:{ground:'#8b754f',road:'#b08d59',water:'#4d8b91',accent:'#ffd06b',minimap:'#7d7a4f'},atmosphere:{fog:0xc9a77c,skyTop:'#4a7b8f',skyMid:'#a9c2b4',skyLow:'#ecc58a',sun:0xffd9a0}}
   ,'safe-haven':{id:'safe-haven',name:'Operation Safe Haven',tagline:'Civilian protection mission',description:'Fortify a fictional Nigerian town, protect community facilities, and secure the evacuation road.',seed:0x9a17e2c4,colors:{ground:'#8b754f',road:'#b08d59',water:'#4d8b91',accent:'#49d5c9',minimap:'#7d7a4f'},atmosphere:{fog:0xc9a77c,skyTop:'#4a7b8f',skyMid:'#a9c2b4',skyLow:'#ecc58a',sun:0xffd9a0}}
  };
  // Authored district plan shared by every Safe Haven theatre (originally the composite town of Kachia). World units match the
@@ -49,6 +50,78 @@
    evacuationPoint:{x:2200,y:1128}
   }
  };
+ // Territory War: two opposing territories joined by a contested landscape. Defence holds
+ // the west, the Raiders the east; the community's town sits between them, with two exposed
+ // outposts and three routes (north road, central highway, south road) plus a bush track.
+ const mirror=list=>list.map(p=>({...p,id:p.id.replace(/^d/,'r'),x:2400-p.x}));
+ const defencePlots=[
+  {id:'dA',x:440,y:520},{id:'dB',x:440,y:830},{id:'dC',x:250,y:470},{id:'dD',x:250,y:880},{id:'dE',x:300,y:300},
+  {id:'dF',x:460,y:330},{id:'dG',x:580,y:420},{id:'dH',x:580,y:930},{id:'dI',x:460,y:1020},{id:'dJ',x:300,y:1050}
+ ].map(p=>({...p,team:0,kind:'base',r:55}));
+ layouts.frontier={
+  territories:[{team:0,name:'Community Defence Territory',x1:125,x2:650,y1:105,y2:1245},{team:1,name:'Raider Territory',x1:1750,x2:2275,y1:105,y2:1245}],
+  hq:[{x:290,y:675},{x:2110,y:675}],
+  plots:[...defencePlots,...mirror(defencePlots).map(p=>({...p,team:1})),
+   {id:'fNW',x:1080,y:360,team:null,kind:'forward',r:55},{id:'fSW',x:1080,y:990,team:null,kind:'forward',r:55},
+   {id:'fNE',x:1320,y:360,team:null,kind:'forward',r:55},{id:'fSE',x:1320,y:990,team:null,kind:'forward',r:55},
+   {id:'res0',x:560,y:1160,team:0,kind:'resource',r:55,resource:'Brick kiln'},{id:'res1',x:1840,y:190,team:1,kind:'resource',r:55,resource:'Sand pit'},
+   {id:'resN',x:1200,y:430,team:null,kind:'resource',r:55,resource:'Grain silos'},{id:'resS',x:1200,y:920,team:null,kind:'resource',r:55,resource:'Fuel depot'}],
+  checkpointNodes:[{id:'cpN',x:1200,y:240,name:'NORTH CHECKPOINT',route:'north'},{id:'cpC',x:1200,y:675,name:'CENTRAL JUNCTION',route:'central'},{id:'cpS',x:1200,y:1110,name:'SOUTH CHECKPOINT',route:'south'}],
+  // Civilian facilities: four in the town, two exposed outposts. Names come from the theatre.
+  facilities:[{id:'facility-clinic',kind:'civilianClinic',x:780,y:450,slot:'clinic'},{id:'facility-school',kind:'community',x:995,y:450,slot:'school'},{id:'facility-market',kind:'market',x:995,y:900,slot:'market'},{id:'facility-centre',kind:'community',x:780,y:900,slot:'centre'},
+   {id:'outpost-north',kind:'community',x:1440,y:160,slot:'outpostNorth',outpost:true},{id:'outpost-south',kind:'community',x:960,y:1190,slot:'outpostSouth',outpost:true}],
+  // Where an AI places small defences, and where its army gathers before an assault.
+  defenceSpots:[[{x:625,y:600},{x:625,y:750},{x:600,y:230},{x:600,y:1120},{x:200,y:600},{x:700,y:560}],[{x:1775,y:600},{x:1775,y:750},{x:1800,y:230},{x:1800,y:1120},{x:2200,y:600},{x:1700,y:790}]],
+  rally:[{x:590,y:675},{x:1810,y:675}],
+  routes:{north:[{x:680,y:330},{x:1200,y:240},{x:1720,y:330}],central:[{x:900,y:675},{x:1200,y:675},{x:1500,y:675}],south:[{x:680,y:1020},{x:1200,y:1110},{x:1720,y:1020}]},
+  zones:[
+   {id:'defence',name:'Community Defence Territory',x:390,y:675,r:300},{id:'raiders',name:'Raider Territory',x:2010,y:675,r:300},
+   {id:'residential',name:'Town',x:885,y:675,r:240},{id:'outpostNorth',name:'North Outpost',x:1440,y:160,r:120},{id:'outpostSouth',name:'South Outpost',x:960,y:1190,r:120},
+   {id:'contested',name:'Contested Ground',x:1200,y:675,r:300}
+  ],
+  roads:[
+   {id:'highway',surface:'asphalt',width:74,points:[[60,675],[700,675],[1200,675],[1700,675],[2340,675]]},
+   {id:'avenue',surface:'asphalt',width:48,points:[[885,360],[885,675],[885,990]]},
+   {id:'school-road',surface:'laterite',width:44,points:[[650,640],[670,330],[770,250],[1200,240],[1630,250],[1730,330],[1750,640]]},
+   {id:'market-street',surface:'laterite',width:44,points:[[650,710],[670,1020],[770,1100],[1200,1110],[1630,1100],[1730,1020],[1750,710]]},
+   {id:'compound-lane',surface:'laterite',width:28,points:[[1200,500],[1200,850]]}
+  ],
+  compounds:[
+   {x:780,y:580,w:110,d:80,rot:.03,style:0},{x:995,y:580,w:110,d:80,rot:-.03,style:1,storeys:2},{x:780,y:770,w:110,d:80,rot:.02,style:2},
+   {x:1330,y:160,w:96,d:76,rot:-.04,style:3},{x:1555,y:165,w:96,d:76,rot:.05,style:2},
+   {x:845,y:1190,w:96,d:76,rot:.03,style:1},{x:1070,y:1190,w:96,d:76,rot:-.05,style:4}
+  ],
+  market:{x:995,y:775,w:150,d:60},
+  field:{x:1080,y:300,w:130,d:76,skip:true},
+  checkpoints:[{x:1200,y:675,rot:0},{x:1200,y:240,rot:0},{x:1200,y:1110,rot:0}],
+  staging:{x:2010,y:675,w:420,d:1000,sparse:true},
+  forests:[{x:180,y:190,r:80},{x:180,y:1160,r:80},{x:2220,y:190,r:80},{x:2220,y:1160,r:80},{x:1080,y:300,r:50},{x:1320,y:1050,r:50},{x:700,y:1225,r:60},{x:1700,y:125,r:60}],
+  // Ground clearings (painted bare earth) and areas kept clear of random scatter.
+  pads:[{x:290,y:675,r:150,c:'rgba(124,118,108,A)'},{x:2110,y:675,r:150,c:'rgba(120,92,64,A)'},{x:390,y:675,r:320,c:'rgba(150,128,96,A)'},{x:2010,y:675,r:320,c:'rgba(132,100,70,A)'}],
+  noScatter:[{x1:125,x2:660,y1:105,y2:1245},{x1:1740,x2:2275,y1:105,y2:1245},{x1:700,x2:1080,y1:360,y2:1000}],
+  billboards:[[1330,612,'blue'],[1080,730,'red'],[1500,742,'green']],
+  signs:[[860,650],[1225,650],[700,1040],[1225,215],[1225,1085]],
+  evacuationPoint:{x:200,y:675}
+ };
+ // Plot occupancy and the build area are shared by the server (validation) and the
+ // client (placement preview) so the two can never disagree.
+ const pointInRect=(p,r)=>p.x>=r.x1&&p.x<=r.x2&&p.y>=r.y1&&p.y<=r.y2;
+ function territoryOf(layoutId,point){const layout=layouts[layoutId];return layout?.territories?.find(t=>pointInRect(point,t))?.team??null}
+ // A team may build in its own territory, around checkpoints it holds, and around its
+ // completed structures outside home (forward expansion).
+ function inBuildArea(layoutId,team,point,state={}){
+  const layout=layouts[layoutId];if(!layout?.territories)return true;
+  if(layout.territories.some(t=>t.team===team&&pointInRect(point,t)))return true;
+  if(layout.territories.some(t=>t.team!==team&&pointInRect(point,t)))return false;
+  if((state.nodes||[]).some(n=>n.owner===team&&!n.kind&&Math.hypot(n.x-point.x,n.y-point.y)<=260))return true;
+  return (state.structures||[]).some(s=>s.team===team&&s.status==='active'&&s.hp>0&&Math.hypot(s.x-point.x,s.y-point.y)<=200);
+ }
+ function plotStatus(layoutId,plot,team,state={}){
+  if(plot.team!==null&&plot.team!==team)return {ok:false,reason:'That plot belongs to the other faction'};
+  if((state.structures||[]).some(s=>s.hp>0&&s.plotId===plot.id))return {ok:false,reason:'Plot already built on'};
+  if(plot.team===null&&!inBuildArea(layoutId,team,plot,state))return {ok:false,reason:plot.kind==='resource'?'Hold the nearby checkpoint to build here':'Hold a nearby checkpoint to build a forward base'};
+  return {ok:true};
+ }
  // Circles of authored scenery that construction may not overlap.
  function blockers(id){
   const layout=layouts[id];if(!layout)return [];
@@ -141,6 +214,6 @@
  const theatreIds=Object.freeze(Object.values(theatres).sort((a,b)=>a.order-b.order).map(t=>t.id));
  const theatre=id=>theatres[id]||theatres[theatreIds[0]];
  // Map metadata as a battle sees it: Safe Haven battles take the theatre's light and name.
- const forState=state=>{const base=get(state?.mapId);if(base.id!=='safe-haven'||!state?.theatreId)return base;const t=theatre(state.theatreId);return {...base,name:t.operation,theatre:t,atmosphere:{...base.atmosphere,...t.atmosphere}}};
- return Object.freeze({maps:Object.freeze(maps),layouts:Object.freeze(layouts),blockers,ids,get,defaultId:'coastal',theatres:Object.freeze(theatres),theatreIds,theatre,forState});
+ const forState=state=>{const base=get(state?.mapId);if(!['safe-haven','frontier'].includes(base.id)||!state?.theatreId)return base;const t=theatre(state.theatreId);return {...base,name:base.id==='frontier'?'Territory War · '+t.city:t.operation,theatre:t,atmosphere:{...base.atmosphere,...t.atmosphere}}};
+ return Object.freeze({maps:Object.freeze(maps),layouts:Object.freeze(layouts),blockers,ids,get,defaultId:'coastal',theatres:Object.freeze(theatres),theatreIds,theatre,forState,territoryOf,inBuildArea,plotStatus,isTown:id=>id==='safe-haven'||id==='frontier'});
 });

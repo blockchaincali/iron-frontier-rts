@@ -26,6 +26,7 @@ npm test
 - **Defend the North** campaign: six real Nigerian cities (Abuja, Kaduna, Jos, Kano, Damaturu, Maiduguri) with real localities, landmarks, slogans and radio chatter, against a fictional insurgent force
 - IEDs for both sides, hidden until swept, and the **Eagle-Eye** scanner that detects, routes around and defuses them
 - Procedural WebAudio sound with no audio files
+- **Territory War**: two opposing territories, HQ-based start with two engineers, construction plots, 13 structures in three categories, parallel/assisted engineering, playable Community Defence or Raiders vs AI (Easy/Standard/Veteran) or a friend, 5- or 3-minute ceasefire plus a 2-minute threat warning (`docs/TERRITORY_WAR.md`, `docs/ARCHITECTURE_ASSESSMENT.md`)
 - Automated tests, original artwork and architecture documentation
 
 ## Beginner controls

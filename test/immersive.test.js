@@ -3,7 +3,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict'),fs=requir
 const {Game}=require('../src/engine'),maps=require('../public/maps');
 const read=file=>fs.readFileSync(path.join(__dirname,'..','public',file),'utf8');
 function haven(options={}){const g=new Game({mode:'solo',missionId:'safe-haven',difficulty:'recruit',...options});g.addParticipant('p0','Coordinator',0);g.addParticipant('bot','Hostiles',1,true);g.start();return g}
-const defend=g=>{g.tutorialComplete(0);g.completeTraining(0)};
+// Begin Defense moves to the two-minute warning; a second press starts the assault.
+const defend=g=>{g.tutorialComplete(0);g.completeTraining(0);g.completeTraining(0)};
 
 test('Safe Haven starts with a deterministic response formation beside the command post',()=>{
  const a=haven(),b=haven(),place=g=>g.units.map(unit=>[unit.type,Math.round(unit.x),Math.round(unit.y)]);

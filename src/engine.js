@@ -1,17 +1,18 @@
 'use strict';
 const {W,H,BOUNDS,UNITS,STRUCTURES,IED,START_CREDITS,MAX_SUPPLY,MAX_TIME,WIN_SCORE,NODES}=require('./config');
-const {blockers:sceneryBlockers,theatre:getTheatre,theatreIds,layouts}=require('../public/maps');
+const {blockers:sceneryBlockers,theatre:getTheatre,theatreIds,layouts,territoryOf}=require('../public/maps');
+const {territory:territoryMethods,PREP_CHOICES}=require('./territory');
+const {CATALOG}=require('./config');
 // Safe Haven assault pacing per difficulty: seconds between waves, opening size, growth per wave and cap.
 const WAVE_PLAN={recruit:{gap:24,base:2,grow:1,max:6},standard:{gap:18,base:3,grow:1.4,max:9},veteran:{gap:13,base:4,grow:2,max:12}};
 const LANES=[360,675,960];
 const rnum=(min,max)=>min+Math.random()*(max-min);
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const hypot=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-const teamName=t=>t===0?'AZURE UNION':'CRIMSON LEGION';
 
 class Game {
- constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null,guided=false,theatreId=null}={}){
-  this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.mapId=this.missionId||(['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.theatreId=this.missionId?(theatreIds.includes(theatreId)?theatreId:theatreIds[0]):null;this.theatre=this.theatreId?getTheatre(this.theatreId):null;this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.guided=mode==='solo'&&Boolean(guided);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
+ constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null,guided=false,theatreId=null,scenario=null,prepMinutes=5}={}){
+  this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.scenario=!this.missionId&&scenario==='territory'?'territory':null;this.prepMinutes=PREP_CHOICES.includes(Number(prepMinutes))?Number(prepMinutes):5;this.maxSupply=MAX_SUPPLY;this.mapId=this.missionId||(this.scenario?'frontier':['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.theatreId=this.missionId||this.scenario?(theatreIds.includes(theatreId)?theatreId:theatreIds[0]):null;this.theatre=this.theatreId?getTheatre(this.theatreId):null;this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.guided=mode==='solo'&&Boolean(guided);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
   this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.structures=[];this.facilities=[];this.caches=[];this.mines=[];this.projectiles=[];this.blasts=[];this.participants=[];this.mission=null;
   this.win=null;this.aiClock=0;this.incomeClock=0;this.snapshotClock=0;this.round=0;
   this.resetWorld();
@@ -31,6 +32,7 @@ class Game {
               {id:'tur1a',kind:'turret',team:1,x:1970,y:390,hp:280,maxHp:280,radius:28,cd:0,range:230},
               {id:'tur1b',kind:'turret',team:1,x:1970,y:960,hp:280,maxHp:280,radius:28,cd:0,range:230}];
   if(this.missionId==='safe-haven')this.resetSafeHaven();
+  if(this.scenario==='territory')this.resetTerritory();
  }
  resetSafeHaven(){
   this.training=true;this.teams=[{credits:760,energy:130,points:0,kills:0,powerCooldown:0},{credits:300,energy:130,points:0,kills:0,powerCooldown:0}];
@@ -38,11 +40,12 @@ class Game {
   this.bases=[{id:'hq0',kind:'hq',team:0,x:250,y:680,hp:1800,maxHp:1800,radius:58,cd:0,range:190},{id:'hq1',kind:'hq',team:1,x:2190,y:675,hp:1300,maxHp:1300,radius:52,cd:0,range:170}];
   this.facilities=[{id:'facility-clinic',kind:'civilianClinic',team:0,x:790,y:480,hp:720,maxHp:720,radius:45,name:T.facilities.clinic},{id:'facility-market',kind:'market',team:0,x:1040,y:900,hp:660,maxHp:660,radius:48,name:T.facilities.market},{id:'facility-centre',kind:'community',team:0,x:560,y:830,hp:760,maxHp:760,radius:48,name:T.facilities.centre},{id:'facility-school',kind:'community',team:0,x:1260,y:430,hp:690,maxHp:690,radius:46,name:T.facilities.school}];
   this.caches=[{id:'cache-credits',kind:'cache',reward:'credits',x:520,y:390,radius:26,claimedBy:null},{id:'cache-repair',kind:'cache',reward:'repair',x:1320,y:880,radius:26,claimedBy:null},{id:'cache-defense',kind:'cache',reward:'defense',x:1680,y:565,radius:26,claimedBy:null}];
-  this.mission={id:'safe-haven',stage:'tutorial',stageTime:0,prepareRemaining:120,wave:0,routeHeld:0,facilitiesRequired:3,guided:this.guided,waveClock:0,nextWaveIn:0,residents:240,evacuated:0};
+  this.mission={id:'safe-haven',stage:'tutorial',stageTime:0,prepDuration:this.prepMinutes*60,warningDuration:120,prepareRemaining:this.prepMinutes*60,wave:0,routeHeld:0,facilitiesRequired:3,guided:this.guided,waveClock:0,nextWaveIn:0,residents:240,evacuated:0};
  }
  start(){if(this.participants.length<2)return false;this.resetWorld();this.round++;this.phase='playing';
+  if(this.scenario==='territory'){this.startTerritory();return true}
   if(this.missionId==='safe-haven'){
-   this.spawn(0,'engineer',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'scanner',true);const formation=[[345,610],[330,705],[372,725],[330,765],[372,785],[400,640]];this.units.forEach((unit,index)=>{[unit.x,unit.y]=formation[index]||[unit.x,unit.y];unit.order='hold';unit.dest=null;unit.hold=true;unit.angle=0});this.event(this.theatre.operation.toUpperCase()+' - '+this.theatre.city.toUpperCase()+', '+this.theatre.state.toUpperCase()+' STATE',0);this.plantInfiltrators(Math.round(this.theatre.threat.ied*3));return true;
+   this.spawn(0,'engineer',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'rifle',true);this.spawn(0,'scanner',true);this.spawn(0,'engineer',true);const formation=[[345,610],[330,705],[372,725],[330,765],[372,785],[400,640],[350,560]];this.units.forEach((unit,index)=>{[unit.x,unit.y]=formation[index]||[unit.x,unit.y];unit.order='hold';unit.dest=null;unit.hold=true;unit.angle=0});this.event(this.theatre.operation.toUpperCase()+' - '+this.theatre.city.toUpperCase()+', '+this.theatre.state.toUpperCase()+' STATE',0);this.plantInfiltrators(Math.round(this.theatre.threat.ied*3));return true;
   }
   for(let team=0;team<2;team++){
    const beginnerBot=this.mode==='solo'&&team===1&&this.difficulty==='recruit';
@@ -52,13 +55,14 @@ class Game {
   if(this.training)for(const unit of this.units){unit.order='hold';unit.dest=null;unit.hold=true}
   this.event('THE FRONTIER IS CONTESTED — CAPTURE THE THREE RELAYS');return true;
  }
- tutorialComplete(team){if(!this.mission)return this.completeTraining(team);if(team!==0)return {ok:false,reason:'Only the trainee commander can complete onboarding'};if(this.mission.stage!=='tutorial')return {ok:true};this.mission.stage='prepare';this.mission.stageTime=0;this.mission.prepareRemaining=120;this.event('120 SECONDS OF PROTECTED PREPARATION BEGINS',0);return {ok:true}}
- completeTraining(team){if(!this.training)return {ok:true};if(team!==0)return {ok:false,reason:'Only the trainee commander can finish training'};if(this.mission?.stage==='tutorial')return {ok:false,reason:'Complete or skip the field tutorial first'};this.training=false;this.aiClock=0;this.incomeClock=0;if(this.mission){this.mission.stage='protect';this.mission.stageTime=0;this.mission.prepareRemaining=0;this.spawnMissionWave(1);this.event('DEFENSE BEGUN - PROTECT CIVILIANS AND THE EVACUATION ROUTE',0)}else{for(const unit of this.units.filter(unit=>unit.team===1)){unit.hold=false;unit.order='attackmove';unit.dest={x:W/2,y:H/2}}this.event('FIELD TRAINING COMPLETE - LIVE BATTLE STARTED',0)}return {ok:true}}
+ tutorialComplete(team){if(!this.mission)return this.completeTraining(team);if(team!==0)return {ok:false,reason:'Only the trainee commander can complete onboarding'};if(this.mission.stage!=='tutorial')return {ok:true};this.mission.stage='prepare';this.mission.stageTime=0;this.mission.prepareRemaining=this.mission.prepDuration;this.event(Math.round(this.mission.prepDuration/60)+' MINUTES OF PROTECTED PREPARATION BEGIN',0);return {ok:true}}
+ completeTraining(team){if(this.scenario==='territory')return this.territoryReady(team);if(!this.training)return {ok:true};if(team!==0)return {ok:false,reason:'Only the trainee commander can finish training'};if(this.mission?.stage==='tutorial')return {ok:false,reason:'Complete or skip the field tutorial first'};if(this.mission?.stage==='prepare'){this.mission.stage='warning';this.mission.stageTime=0;this.mission.prepareRemaining=this.mission.warningDuration;this.event('HOSTILES STAGING IN '+(this.theatre?.zones.staging||'THE EAST').toUpperCase()+' - FIRST ASSAULT IN 2:00',0);return {ok:true,warning:true}}this.training=false;this.aiClock=0;this.incomeClock=0;if(this.mission){this.mission.stage='protect';this.mission.stageTime=0;this.mission.prepareRemaining=0;this.spawnMissionWave(1);this.event('DEFENSE BEGUN - PROTECT CIVILIANS AND THE EVACUATION ROUTE',0)}else{for(const unit of this.units.filter(unit=>unit.team===1)){unit.hold=false;unit.order='attackmove';unit.dest={x:W/2,y:H/2}}this.event('FIELD TRAINING COMPLETE - LIVE BATTLE STARTED',0)}return {ok:true}}
  supply(team){return this.units.filter(u=>u.team===team).reduce((sum,u)=>sum+UNITS[u.type].supply,0)}
  spawn(team,type,free=false){
   const d=UNITS[type],t=this.teams[team]; if(!d||!t||this.phase!=='playing'&&!free)return {ok:false,reason:'No battle running'};
-  if(type==='engineer'&&this.missionId!=='safe-haven')return {ok:false,reason:'Engineers are assigned to Operation Safe Haven'};if(type==='patrol'&&!free)return {ok:false,reason:'Produce patrol vehicles from a workshop'};
-  if(this.supply(team)+d.supply>MAX_SUPPLY)return {ok:false,reason:'Unit supply cap reached'};
+  if(this.scenario==='territory'&&!free){if(type==='engineer'){const hq=this.bases.find(b=>b.team===team&&b.kind==='hq'&&b.hp>0);return hq?this.produce(team,hq.id,'engineer'):{ok:false,reason:'Command HQ destroyed'}}return {ok:false,reason:'Recruit from your barracks, workshop or factory'}}
+  if(type==='engineer'&&this.missionId!=='safe-haven'&&this.scenario!=='territory')return {ok:false,reason:'Engineers are assigned to Operation Safe Haven'};if(type==='patrol'&&!free)return {ok:false,reason:'Produce patrol vehicles from a workshop'};
+  if(this.supply(team)+d.supply>this.supplyCap(team))return {ok:false,reason:'Unit supply cap reached'};
   if(!free&&t.credits<d.cost)return {ok:false,reason:'Insufficient credits'};
   const base=this.bases.find(b=>b.kind==='hq'&&b.team===team&&b.hp>0);if(!base)return {ok:false,reason:'Command center destroyed'};
   if(!free){t.credits-=d.cost;this.stats[team].trained++}
@@ -68,22 +72,30 @@ class Game {
   const u={id:this.nextId('u'),team,type,x,y,hp:d.hp,maxHp:d.hp,radius:d.radius,cd:rnum(0,0.6),order:'attackmove',dest:{x:objective.x+(team?60:-60),y:objective.y+rnum(-30,30)},targetId:null,hold:false,angle:team===0?0:Math.PI,vx:0,vy:0};
   this.units.push(u);return {ok:true,unit:u};
  }
- constructionSite(team,type,x,y,builderIds){
-  if(this.missionId!=='safe-haven'||this.phase!=='playing')return {ok:false,reason:'Construction is only available during Operation Safe Haven'};
-  const definition=STRUCTURES[type],px=Number(x),py=Number(y),builders=this.units.filter(unit=>unit.team===team&&unit.type==='engineer'&&builderIds?.includes(unit.id));
-  if(!definition)return {ok:false,reason:'Unknown structure'};if(!builders.length)return {ok:false,reason:'Select an engineer vehicle first'};
-  if(builders.every(builder=>builder.order==='construct'&&this.structures.some(structure=>structure.builderId===builder.id&&structure.status==='building')))return {ok:false,reason:'Engineer is already constructing'};
-  if(!Number.isFinite(px)||!Number.isFinite(py)||px<BOUNDS.left+45||px>BOUNDS.right-45||py<BOUNDS.top+45||py>BOUNDS.bottom-45)return {ok:false,reason:'Build inside the marked town boundary'};
-  if(Math.min(...builders.map(builder=>Math.hypot(builder.x-px,builder.y-py)))>390)return {ok:false,reason:'Build closer to your engineer'};
-  const blockers=[...this.bases,...this.facilities,...this.structures,...this.nodes];if(blockers.some(object=>object.hp!==0&&Math.hypot(object.x-px,object.y-py)<(object.radius||44)+definition.radius+18))return {ok:false,reason:'That location is blocked'};if(sceneryBlockers(this.mapId).some(object=>Math.hypot(object.x-px,object.y-py)<object.radius+definition.radius+10))return {ok:false,reason:'Homes and market stalls block that site'};
+ constructionSite(team,type,x,y,builderIds,plotId=null){
+  const territory=this.scenario==='territory';
+  if(!(this.missionId==='safe-haven'||territory)||this.phase!=='playing')return {ok:false,reason:'Construction is only available in Safe Haven and Territory War'};
+  const definition=STRUCTURES[type];if(!definition)return {ok:false,reason:'Unknown structure'};
+  let px=Number(x),py=Number(y);
+  const namedPlot=territory&&plotId?layouts.frontier.plots.find(p=>p.id===plotId):null;if(namedPlot){px=namedPlot.x;py=namedPlot.y}
+  if(!Number.isFinite(px)||!Number.isFinite(py)||px<BOUNDS.left+45||px>BOUNDS.right-45||py<BOUNDS.top+45||py>BOUNDS.bottom-45)return {ok:false,reason:'Build inside the marked boundary'};
+  let site=null;if(territory){site=this.territorySite(team,type,px,py,plotId);if(!site.ok)return site;px=site.x;py=site.y}
+  // Explicitly selected free engineers all work on the new site; otherwise the nearest free one goes.
+  const engineers=this.units.filter(unit=>unit.team===team&&unit.type==='engineer'),busy=unit=>unit.order==='repair'||unit.order==='construct'&&this.structures.some(s=>s.id===unit.targetId&&s.status==='building'),free=engineers.filter(unit=>!busy(unit));
+  let builders=free.filter(unit=>Array.isArray(builderIds)&&builderIds.includes(unit.id));
+  if(!builders.length)builders=[...free].sort((a,b)=>Math.hypot(a.x-px,a.y-py)-Math.hypot(b.x-px,b.y-py)).slice(0,1);
+  if(!builders.length)return {ok:false,reason:engineers.length?'All engineers are busy - train another at the HQ or have one assist':'No engineers left - train one at the HQ'};
+  const blockers=[...this.bases,...this.facilities,...this.structures,...this.nodes];if(blockers.some(object=>object.hp!==0&&Math.hypot(object.x-px,object.y-py)<(object.radius||44)+definition.radius+(site?.plotId?6:18)))return {ok:false,reason:'That location is blocked'};if(sceneryBlockers(this.mapId).some(object=>Math.hypot(object.x-px,object.y-py)<object.radius+definition.radius+10))return {ok:false,reason:'Homes and market stalls block that site'};
   if(this.teams[team].credits<definition.cost)return {ok:false,reason:'Need '+definition.cost+' credits'};this.teams[team].credits-=definition.cost;
-  const structure={id:this.nextId('s'),team,type,x:px,y:py,hp:Math.ceil(definition.hp*.3),maxHp:definition.hp,radius:definition.radius,status:'building',progress:0,buildTime:definition.buildTime,level:1,cd:0,production:null,upgradeProgress:0,builderId:builders[0].id};this.structures.push(structure);
-  for(const builder of builders){builder.order='construct';builder.dest={x:px,y:py};builder.targetId=structure.id;builder.hold=false}this.event('CONSTRUCTION STARTED - '+definition.label.toUpperCase(),team);return {ok:true,structure};
+  const structure={id:this.nextId('s'),team,type,x:px,y:py,hp:Math.ceil(definition.hp*.3),maxHp:definition.hp,radius:definition.radius,status:'building',progress:0,buildTime:definition.buildTime,level:1,cd:0,production:null,upgradeProgress:0,builderId:builders[0].id,builders:0,plotId:site?.plotId||null};this.structures.push(structure);
+  for(const builder of builders){builder.order='construct';builder.dest={x:px,y:py};builder.targetId=structure.id;builder.hold=false;builder.job=null;builder.path=null}this.event('CONSTRUCTION STARTED - '+(territory?CATALOG.name(type,team):definition.label).toUpperCase(),team);return {ok:true,structure};
  }
  produce(team,structureId,type){
-  const producerType=type==='rifle'?'barracks':type==='patrol'||type==='scanner'?'workshop':null,producer=this.structures.find(structure=>structure.id===structureId&&structure.team===team&&structure.type===producerType&&structure.status==='active');
-  if(!producerType)return {ok:false,reason:'That unit cannot be produced by a town structure'};if(!producer)return {ok:false,reason:'Select an active '+STRUCTURES[producerType].label.toLowerCase()};if(producer.production)return {ok:false,reason:'Production queue is busy'};const definition=UNITS[type],queued=this.structures.filter(value=>value.team===team&&value.production).reduce((sum,value)=>sum+(UNITS[value.production.type]?.supply||0),0);if(this.supply(team)+queued+definition.supply>MAX_SUPPLY)return {ok:false,reason:'Unit supply cap reached'};if(this.teams[team].credits<definition.cost)return {ok:false,reason:'Need '+definition.cost+' credits'};
-  this.teams[team].credits-=definition.cost;producer.production={type,progress:0,duration:type==='rifle'?4.5:type==='scanner'?7:8};this.event((type==='rifle'?'INFANTRY SQUAD TRAINING':type==='scanner'?'EAGLE-EYE SCANNER IN PRODUCTION':'PROTECTED PATROL VEHICLE IN PRODUCTION'),team);return {ok:true};
+  const recipe=CATALOG.PRODUCTION[type],definition=UNITS[type];if(!recipe||!definition||recipe.from==='hq'&&this.scenario!=='territory')return {ok:false,reason:'That unit cannot be produced here'};
+  const producer=recipe.from==='hq'?this.bases.find(b=>b.id===structureId&&b.team===team&&b.kind==='hq'&&b.hp>0):this.structures.find(s=>s.id===structureId&&s.team===team&&s.type===recipe.from&&s.status==='active'&&(STRUCTURES[s.type].produces||[]).includes(type));
+  if(!producer)return {ok:false,reason:'Select an active '+(recipe.from==='hq'?'command HQ':CATALOG.name(recipe.from,team).toLowerCase())};if(producer.production)return {ok:false,reason:'Production queue is busy'};
+  const queued=[...this.structures,...this.bases].filter(value=>value.team===team&&value.production).reduce((sum,value)=>sum+(UNITS[value.production.type]?.supply||0),0);if(this.supply(team)+queued+definition.supply>this.supplyCap(team))return {ok:false,reason:'Unit supply cap reached - build a supply depot'};if(this.teams[team].credits<definition.cost)return {ok:false,reason:'Need '+definition.cost+' credits'};
+  this.teams[team].credits-=definition.cost;producer.production={type,progress:0,duration:recipe.time};this.event(this.scenario==='territory'?CATALOG.UNIT_NAMES[team][type].toUpperCase()+' IN PRODUCTION':(type==='rifle'?'INFANTRY SQUAD TRAINING':type==='scanner'?'EAGLE-EYE SCANNER IN PRODUCTION':'PROTECTED PATROL VEHICLE IN PRODUCTION'),team);return {ok:true};
  }
  repairStructure(team,structureId,builderIds){
   const structure=this.structures.find(value=>value.id===structureId&&value.team===team&&value.status==='active');if(!structure)return {ok:false,reason:'Select a completed friendly defense'};if(structure.hp>=structure.maxHp)return {ok:false,reason:'This defense is already at full health'};const engineer=this.units.find(unit=>unit.team===team&&unit.type==='engineer'&&builderIds?.includes(unit.id));if(!engineer)return {ok:false,reason:'Select an engineer vehicle to repair'};engineer.order='repair';engineer.dest={x:structure.x,y:structure.y};engineer.targetId=structure.id;engineer.hold=false;this.event('ENGINEER DISPATCHED FOR MAINTENANCE',team);return {ok:true};
@@ -98,12 +110,13 @@ class Game {
   if(!Array.isArray(ids)||ids.length>100)return {ok:false,reason:'Invalid selection'};
   const units=this.units.filter(u=>u.team===team&&ids.includes(u.id));if(!units.length)return {ok:false,reason:'Select your units first'};
   if(action==='focus'){
-   const obj=[...this.units,...this.bases].find(v=>v.id===targetId&&v.team!==team&&v.hp>0);
-   if(!obj)return {ok:false,reason:'Target unavailable'};
+   const obj=this.combatants().find(v=>v.id===targetId&&v.team!==team&&v.hp>0);
+   if(!obj)return {ok:false,reason:'Target unavailable'};if(this.ceasefire())return {ok:false,reason:'Ceasefire - attacks unlock when the battle goes live'};
   }
+  if((action==='move'||action==='attackmove')&&this.ceasefireBlocks(team,Number(x),Number(y)))return {ok:false,reason:this.ceasefireBlocks(team,Number(x),Number(y))};
   units.forEach((u,i)=>{
    const spread=(i-(units.length-1)/2)*27;
-   u.order=action;u.job=null;u.targetId=action==='focus'?targetId:null;
+   u.order=action;u.job=null;u.path=null;u.captureSquad=false;u.targetId=action==='focus'?targetId:null;
    u.hold=action==='hold'||action==='stop';
    if(action==='move'||action==='attackmove')u.dest={x:clamp(Number(x)||u.x,BOUNDS.left,BOUNDS.right),y:clamp((Number(y)||u.y)+spread,BOUNDS.top,BOUNDS.bottom)};
    if(action==='focus')u.dest=null;
@@ -114,6 +127,7 @@ class Game {
   const t=this.teams[team];if(this.phase!=='playing')return {ok:false,reason:'Battle ended'};
   if(t.energy<110)return {ok:false,reason:'Need 110 energy'};
   if(t.powerCooldown>this.time)return {ok:false,reason:'Orbital strike cooling down'};
+  if(this.ceasefire())return {ok:false,reason:'Ceasefire - strikes unlock when the battle goes live'};
   t.energy-=110;t.powerCooldown=this.time+24;
   const px=clamp(Number(x)||W/2,BOUNDS.left,BOUNDS.right),py=clamp(Number(y)||H/2,BOUNDS.top,BOUNDS.bottom);
   this.blasts.push({id:this.nextId('blast'),team,x:px,y:py,delay:1.25,age:0,radius:100,duration:0.9,hit:false});
@@ -167,7 +181,7 @@ class Game {
  stepMines(){
   const scan=UNITS.scanner.scan;
   for(const scanner of this.units){if(scanner.type!=='scanner')continue;for(const mine of this.mines)if(mine.team!==scanner.team&&!mine.revealed[scanner.team]&&Math.hypot(mine.x-scanner.x,mine.y-scanner.y)<=scan){mine.revealed[scanner.team]=true;this.stats[scanner.team].detected++;this.event('EAGLE-EYE DETECTED AN IED - '+this.placeName(mine),scanner.team)}}
-  if(this.training)return;
+  if(this.training||this.ceasefire())return;
   for(const mine of [...this.mines]){if(this.time<mine.armedAt)continue;if(this.units.some(unit=>unit.team!==mine.team&&unit.type!=='scanner'&&Math.hypot(unit.x-mine.x,unit.y-mine.y)<IED.trigger+unit.radius*.5))this.detonate(mine)}
  }
  detonate(mine){
@@ -195,15 +209,16 @@ class Game {
  }
  applyDamage(target,damage,attacker){
   if(this.training&&target.team===0)return;
+  if(this.ceasefire())return;
   if(this.mission?.guided&&this.mission.wave<=1&&target.team===0&&(this.facilities.includes(target)||target.kind==='hq'))damage=Math.min(damage,Math.max(0,target.hp-target.maxHp*.4));
   if(this.teams[target.team]?.defenseBoostUntil>this.time)damage*=.72;
   target.hp=Math.max(0,target.hp-damage);
   if(target.hp>0)return;
   if(this.units.includes(target)){this.units=this.units.filter(u=>u.id!==target.id);this.stats[target.team].lost++}
-  else if(this.structures.includes(target)){this.structures=this.structures.filter(value=>value!==target);this.event('DEFENSE DESTROYED - '+STRUCTURES[target.type].label.toUpperCase(),target.team)}
-  else if(this.facilities.includes(target)){this.event(target.name.toUpperCase()+' HAS BEEN LOST',0);if(this.facilities.filter(value=>value.hp>0).length<this.mission.facilitiesRequired)this.end(1,'CIVILIAN SAFETY NETWORK COLLAPSED')}
-  else{if(target.kind==='turret')this.event(teamName(target.team)+' LOST A TURRET',target.team);
-  if(target.kind==='hq')this.end(1-target.team,this.missionId==='safe-haven'?(target.team===0?'SAFE HAVEN COMMAND POST LOST':'TOWN SECURED'):'COMMAND CENTER DESTROYED')}
+  else if(this.structures.includes(target)){this.structures=this.structures.filter(value=>value!==target);this.event((this.scenario==='territory'?CATALOG.name(target.type,target.team)+' DESTROYED':'DEFENSE DESTROYED - '+STRUCTURES[target.type].label).toUpperCase(),target.team);if(this.scenario==='territory'&&attacker!=null)this.teams[attacker].points+=40}
+  else if(this.facilities.includes(target)){this.event(target.name.toUpperCase()+' HAS BEEN LOST',0);if(this.scenario==='territory'){this.territory.lost[0]++;if(attacker===1)this.teams[1].points+=120}else if(this.mission&&this.facilities.filter(value=>value.hp>0).length<this.mission.facilitiesRequired)this.end(1,'CIVILIAN SAFETY NETWORK COLLAPSED')}
+  else{if(target.kind==='turret')this.event(this.teamName(target.team)+' LOST A TURRET',target.team);
+  if(target.kind==='hq')this.end(1-target.team,this.scenario==='territory'?(target.team===0?'COMMUNITY HQ DESTROYED':'RAIDER CAMP DESTROYED'):this.missionId==='safe-haven'?(target.team===0?'SAFE HAVEN COMMAND POST LOST':'TOWN SECURED'):'COMMAND CENTER DESTROYED')}
   if(attacker!==null&&attacker!==undefined){this.teams[attacker].kills++;this.teams[attacker].credits+=target.type?9:40}
  }
  applyReward(team,reward,source){
@@ -220,7 +235,8 @@ class Game {
  step(dt=0.05){
   if(this.phase!=='playing')return;
   dt=clamp(dt,0,0.12);if(!this.training)this.time+=dt;this.aiClock+=dt;this.incomeClock+=dt;
-  for(const b of this.bases){if(b.hp<=0)continue;b.cd-=dt;if(this.training)continue;const target=this.closestEnemy(b,b.team,b.range);if(target&&b.cd<=0){this.fire(b,target,b.kind==='hq'?22:25,575,9);b.cd=b.kind==='hq'?0.65:1.0}}
+  const ceasefire=this.ceasefire();
+  for(const b of this.bases){if(b.hp<=0)continue;b.cd-=dt;if(this.training||ceasefire)continue;const target=this.closestEnemy(b,b.team,b.range);if(target&&b.cd<=0){this.fire(b,target,b.kind==='hq'?22:25,575,9);b.cd=b.kind==='hq'?0.65:1.0}}
   this.stepStructures(dt);
   for(const u of [...this.units]){
    const d=UNITS[u.type];u.cd-=dt;
@@ -228,8 +244,8 @@ class Game {
    if(u.type==='engineer'&&u.order==='repair'){
     const repairTarget=this.structures.find(value=>value.id===u.targetId&&value.team===u.team&&value.status==='active');if(!repairTarget||repairTarget.hp>=repairTarget.maxHp){u.order='hold';u.dest=null;u.targetId=null;u.hold=true;continue}const repairDistance=Math.hypot(u.x-repairTarget.x,u.y-repairTarget.y);if(repairDistance<=u.radius+repairTarget.radius+24){u.hold=true;const affordable=Math.min(32*dt,this.teams[u.team].credits*4);repairTarget.hp=Math.min(repairTarget.maxHp,repairTarget.hp+affordable);this.teams[u.team].credits=Math.max(0,this.teams[u.team].credits-affordable/4);if(repairTarget.hp>=repairTarget.maxHp){u.order='hold';u.dest=null;u.targetId=null;this.event(STRUCTURES[repairTarget.type].label.toUpperCase()+' REPAIRED',u.team)}continue}}
    const job=u.order==='plant'||u.order==='defuse'?this.stepIedJob(u,dt):null;if(job==='busy')continue;
-   let target=job?null:u.targetId?[...this.units,...this.bases].find(t=>t.id===u.targetId&&t.hp>0&&t.team!==u.team):null;
-   if(!job&&!target&&u.order!=='move')target=this.closestEnemy(u,u.team,d.range+(u.order==='focus'?220:35));
+   let target=job||ceasefire?null:u.targetId?this.combatants().find(t=>t.id===u.targetId&&t.hp>0&&t.team!==u.team):null;
+   if(!job&&!ceasefire&&!target&&u.order!=='move')target=this.closestEnemy(u,u.team,d.range+(u.order==='focus'?220:35));
    if(target&&hypot(u,target)<=d.range){
     u.angle=Math.atan2(target.y-u.y,target.x-u.x);
     if(u.cd<=0){this.fire(u,target,d.damage,d.bulletSpeed,d.splash);u.cd=d.fireRate}
@@ -240,14 +256,16 @@ class Game {
    if(u.order==='focus'&&target)dest={x:target.x,y:target.y};
    if(!dest||u.order==='attackmove'&&target&&hypot(u,target)<d.range*1.25&&u.type==='rocket')continue;
    const dx=dest.x-u.x,dy=dest.y-u.y,dist=Math.hypot(dx,dy);
-   if(dist<d.radius*0.65){if(u.order==='move')u.order='hold';continue}
+   if(dist<d.radius*0.65){if(u.path?.length){u.dest=u.path.shift();continue}if(u.order==='move')u.order='hold';continue}
    const speed=Math.min(d.speed*dt,dist);
    let separationX=0,separationY=0;
    for(const other of this.units){if(other===u)continue;const ox=u.x-other.x,oy=u.y-other.y,near=Math.hypot(ox,oy);if(near>0&&near<d.radius+other.radius+6){separationX+=ox/near*.7;separationY+=oy/near*.7}}
    for(const obstacle of this.structures.filter(value=>value.hp>0)){const ox=u.x-obstacle.x,oy=u.y-obstacle.y,near=Math.hypot(ox,oy),limit=d.radius+obstacle.radius+3;if(near>0&&near<limit){separationX+=ox/near*2.3;separationY+=oy/near*2.3}}
    for(const mine of this.mines){if(mine.team===u.team||!mine.revealed[u.team]||u.type==='scanner')continue;const ox=u.x-mine.x,oy=u.y-mine.y,near=Math.hypot(ox,oy),limit=IED.trigger+d.radius+30;if(near>0&&near<limit){const push=2.6*(1-near/limit)+.9,side=u.dodge?.id===mine.id?u.dodge.side:(u.dodge={id:mine.id,side:(dx*oy-dy*ox)>=0?1:-1}).side;separationX+=ox/near*push-side*oy/near*1.6;separationY+=oy/near*push+side*ox/near*1.6}}
    const ax=dx/dist+separationX,ay=dy/dist+separationY,len=Math.hypot(ax,ay)||1;
-   u.x=clamp(u.x+ax/len*speed,BOUNDS.left,BOUNDS.right);u.y=clamp(u.y+ay/len*speed,BOUNDS.top,BOUNDS.bottom);
+   const nx=clamp(u.x+ax/len*speed,BOUNDS.left,BOUNDS.right),ny=clamp(u.y+ay/len*speed,BOUNDS.top,BOUNDS.bottom);
+   if(ceasefire&&this.ceasefireBlocks(u.team,nx,ny)){u.dest=null;u.path=null;u.hold=true;u.order='hold';continue}
+   u.x=nx;u.y=ny;
    u.angle=Math.atan2(ay,ax);
   }
   this.stepMines();
@@ -278,20 +296,23 @@ class Game {
    if(node.progress<=-96)node.owner=0;
    else if(node.progress>=96)node.owner=1;
    else if(Math.abs(node.progress)<32)node.owner=-1;
-   if(previous!==node.owner){this.event(node.owner===-1?node.name+' CONTESTED':teamName(node.owner)+' CAPTURED '+node.name,node.owner);if(node.kind==='outpost'&&node.owner>=0&&previous!==node.owner)this.applyReward(node.owner,node.reward,node.name)}
+   if(previous!==node.owner){this.event(node.owner===-1?node.name+' CONTESTED':this.teamName(node.owner)+' CAPTURED '+node.name,node.owner);if(node.kind==='outpost'&&node.owner>=0&&previous!==node.owner)this.applyReward(node.owner,node.reward,node.name)}
   }
   for(const cache of this.caches){if(cache.claimedBy!==null)continue;for(let team=0;team<2;team++){if(this.units.some(unit=>unit.team===team&&Math.hypot(unit.x-cache.x,unit.y-cache.y)<70)){cache.claimedBy=team;this.stats[team].caches++;this.applyReward(team,cache.reward,'SUPPLY CACHE');break}}}
+  if(this.incomeClock>=1&&this.scenario==='territory'){const seconds=Math.floor(this.incomeClock);this.incomeClock-=seconds;this.territoryIncome(seconds)}
   if(this.incomeClock>=1){const seconds=Math.floor(this.incomeClock);this.incomeClock-=seconds;
-   for(let t=0;t<2;t++){const strategic=this.nodes.filter(n=>n.owner===t&&!n.kind).length,outposts=this.nodes.filter(n=>n.owner===t&&n.kind==='outpost').length;this.teams[t].credits=Math.min(1100,this.teams[t].credits+(13+strategic*13+outposts*5)*seconds);this.teams[t].energy=Math.min(180,this.teams[t].energy+(1.2+strategic*1.9+outposts*.8)*seconds);if(!this.training)this.teams[t].points+=strategic*seconds*2}
+   for(let t=0;t<2;t++){const strategic=this.nodes.filter(n=>n.owner===t&&!n.kind).length,outposts=this.nodes.filter(n=>n.owner===t&&n.kind==='outpost').length;this.teams[t].credits=Math.min(1100,this.teams[t].credits+(13+strategic*13+outposts*5)*seconds);this.teams[t].energy=Math.min(180,this.teams[t].energy+(1.2+strategic*1.9+outposts*.8)*seconds);if(!this.training&&!this.scenario)this.teams[t].points+=strategic*seconds*2}
    if(this.facilities.some(facility=>facility.kind==='market'&&facility.hp>0))this.teams[0].credits=Math.min(1100,this.teams[0].credits+4*seconds);
    if(this.training){this.teams[0].credits=Math.max(this.teams[0].credits,620);this.teams[0].energy=Math.max(this.teams[0].energy,130)}
   }
   const aiPeriod=this.mode==='solo'?{recruit:5.2,standard:2.8,veteran:1.3}[this.difficulty]:1.3;
-  if(!this.training&&this.aiClock>=aiPeriod){this.aiClock=0;for(const p of this.participants.filter(p=>p.bot))this.aiAction(p.team)}
+  if(this.scenario==='territory'){for(const ai of this.ais.values())ai.tick(dt)}
+  else if(!this.training&&this.aiClock>=aiPeriod){this.aiClock=0;for(const p of this.participants.filter(p=>p.bot))this.aiAction(p.team)}
   for(const facility of this.facilities)if(facility.kind==='civilianClinic'&&facility.hp>0)for(const unit of this.units)if(unit.team===facility.team&&unit.hp<unit.maxHp&&Math.hypot(unit.x-facility.x,unit.y-facility.y)<150)unit.hp=Math.min(unit.maxHp,unit.hp+3*dt);
   if(this.mission)this.stepMission(dt);
+  else if(this.scenario==='territory')this.stepTerritory(dt);
   else if(!this.training&&this.teams.some(t=>t.points>=WIN_SCORE))this.end(this.teams[0].points>this.teams[1].points?0:1,'CONTROL POINT VICTORY');
-  if(!this.mission&&!this.training&&this.time>=this.duration)this.end(this.teams[0].points===this.teams[1].points?this.bases[0].hp>=this.bases[1].hp?0:1:this.teams[0].points>this.teams[1].points?0:1,'TIME LIMIT');
+  if(!this.mission&&!this.scenario&&!this.training&&this.time>=this.duration)this.end(this.teams[0].points===this.teams[1].points?this.bases[0].hp>=this.bases[1].hp?0:1:this.teams[0].points>this.teams[1].points?0:1,'TIME LIMIT');
  }
  combatants(){return [...this.units,...this.bases,...this.structures,...this.facilities]}
  closestEnemy(actor,team,range){let best=null,nearest=Infinity;
@@ -300,12 +321,20 @@ class Game {
  stepStructures(dt){
   for(const structure of [...this.structures]){
    if(structure.status==='building'){
-    const builder=this.units.find(unit=>unit.id===structure.builderId&&unit.team===structure.team);if(!builder)continue;const distance=Math.hypot(builder.x-structure.x,builder.y-structure.y);if(distance<=structure.radius+builder.radius+22){builder.hold=true;builder.order='construct';structure.progress=Math.min(structure.buildTime,structure.progress+dt);structure.hp=Math.min(structure.maxHp,structure.hp+structure.maxHp*.7/structure.buildTime*dt);if(structure.progress>=structure.buildTime){structure.status='active';structure.hp=structure.maxHp;builder.order='hold';builder.targetId=null;this.stats[structure.team].built++;this.event(STRUCTURES[structure.type].label.toUpperCase()+' READY',structure.team)}}continue;
+    const builders=this.buildersOn(structure);structure.builders=builders.length;if(!builders.length)continue;
+    const rate=this.buildRate(builders.length);for(const b of builders)b.hold=true;structure.progress=Math.min(structure.buildTime,structure.progress+dt*rate);structure.hp=Math.min(structure.maxHp,structure.hp+structure.maxHp*.7/structure.buildTime*dt*rate);
+    if(structure.progress>=structure.buildTime){structure.status='active';structure.hp=structure.maxHp;structure.builders=0;for(const b of this.units.filter(u=>u.order==='construct'&&u.targetId===structure.id)){b.order='hold';b.targetId=null;b.dest=null;b.hold=true}this.stats[structure.team].built++;this.event((this.scenario==='territory'?CATALOG.name(structure.type,structure.team):STRUCTURES[structure.type].label).toUpperCase()+' READY',structure.team)}
+    continue;
    }
    if(structure.upgradeProgress){structure.upgradeProgress+=dt;if(structure.upgradeProgress>=5){structure.upgradeProgress=0;structure.level=2;structure.maxHp=Math.ceil(structure.maxHp*1.35);structure.hp=structure.maxHp;this.event(STRUCTURES[structure.type].label.toUpperCase()+' UPGRADED',structure.team)}}
-   if(structure.type==='watchtower'){structure.cd-=dt;if(!this.training){const target=this.closestEnemy(structure,structure.team,STRUCTURES.watchtower.range+(structure.level-1)*35);if(target&&structure.cd<=0){this.fire(structure,target,STRUCTURES.watchtower.damage+(structure.level-1)*8,650,4);structure.cd=STRUCTURES.watchtower.fireRate}}}
+   const def=STRUCTURES[structure.type];
+   if(def.damage){structure.cd-=dt;if(!this.training&&!this.ceasefire()){const target=this.closestEnemy(structure,structure.team,def.range+(structure.level-1)*35);if(target&&structure.cd<=0){this.fire(structure,target,def.damage+(structure.level-1)*8,650,def.splash||4);structure.cd=def.fireRate}}}
    if(structure.type==='clinic'){const amount=STRUCTURES.clinic.heal*(structure.level===2?1.45:1)*dt;for(const unit of this.units.filter(unit=>unit.team===structure.team&&unit.hp<unit.maxHp&&Math.hypot(unit.x-structure.x,unit.y-structure.y)<155))unit.hp=Math.min(unit.maxHp,unit.hp+amount)}
-   if((structure.type==='workshop'||structure.type==='barracks')&&structure.production){structure.production.progress+=dt;if(structure.production.progress>=structure.production.duration){const produced=structure.production.type,offset=structure.radius+36;this.stats[structure.team].trained++;this.spawnAt(structure.team,produced,structure.x+(structure.team===0?offset:-offset),structure.y);structure.production=null;this.event(produced==='rifle'?'INFANTRY SQUAD READY':produced==='scanner'?'EAGLE-EYE SCANNER DEPLOYED':'PROTECTED PATROL VEHICLE DEPLOYED',structure.team)}}
+  }
+  for(const producer of [...this.structures.filter(s=>s.status==='active'),...this.bases.filter(b=>b.kind==='hq'&&b.hp>0)]){
+   if(!producer.production)continue;producer.production.progress+=dt;if(producer.production.progress<producer.production.duration)continue;
+   const produced=producer.production.type,offset=producer.radius+36,dir=producer.team===0?1:-1;this.stats[producer.team].trained++;const unit=this.spawnAt(producer.team,produced,producer.x+dir*offset,producer.y+(producer.kind==='hq'?rnum(-50,50):0));if(unit)unit.angle=producer.team===0?0:Math.PI;producer.production=null;
+   this.event(this.scenario==='territory'?CATALOG.UNIT_NAMES[producer.team][produced].toUpperCase()+' READY':produced==='rifle'?'INFANTRY SQUAD READY':produced==='scanner'?'EAGLE-EYE SCANNER DEPLOYED':'PROTECTED PATROL VEHICLE DEPLOYED',producer.team);
   }
  }
  spawnMissionWave(intensity=0){
@@ -326,7 +355,7 @@ class Game {
  stepMission(dt){
   if(!this.mission||this.phase!=='playing')return;const mission=this.mission,plan=WAVE_PLAN[this.difficulty]||WAVE_PLAN.recruit;
   if(mission.stage==='tutorial')return;
-  if(mission.stage==='prepare'){mission.stageTime+=dt;mission.prepareRemaining=Math.max(0,120-mission.stageTime);if(mission.prepareRemaining<=0)this.completeTraining(0);return}
+  if(mission.stage==='prepare'||mission.stage==='warning'){mission.stageTime+=dt;mission.prepareRemaining=Math.max(0,(mission.stage==='prepare'?mission.prepDuration:mission.warningDuration)-mission.stageTime);if(mission.prepareRemaining<=0)this.completeTraining(0);return}
   if(this.training)return;mission.stageTime+=dt;mission.waveClock+=dt;
   const gap=plan.gap*(mission.stage==='route'?1.15:mission.stage==='final'?.9:1);if(mission.waveClock>=gap)this.spawnMissionWave(mission.stage==='final'?2:mission.stage==='route'?1:0);mission.nextWaveIn=Math.max(0,gap-mission.waveClock);
   if(mission.stage==='protect'){if(mission.stageTime>=50){mission.stage='route';mission.stageTime=0;this.event('SECURE THE EASTERN EVACUATION ROUTE',0)}}
@@ -356,14 +385,15 @@ class Game {
   if(this.time>(easy?220:85)&&t.energy>=110&&t.powerCooldown<this.time&&Math.random()<(easy?0.04:0.17)){const center={x:W/2,y:H/2};const target=this.units.filter(u=>u.team!==team).sort((a,b)=>hypot(a,center)-hypot(b,center))[0];if(target)this.orbital(team,target.x,target.y)}
   if(!desired.length&&owned.length===this.nodes.length&&this.time>40){for(const u of this.units.filter(u=>u.team===team)){u.dest={x:team===0?2090:310,y:rnum(420,930)};u.order='attackmove'}}
  }
- end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(teamName(winner)+' WINS — '+reason,winner)}
- snapshot(viewTeam=null){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,theatreId:this.theatreId,mines:viewTeam===null?[]:this.visibleMines(viewTeam),mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0),nextWaveIn:Math.ceil(this.mission.nextWaveIn||0),evacuated:Math.floor(this.mission.evacuated||0)}:null,stats:this.stats.map(value=>({...value})),world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
-  teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
+ end(winner,reason){if(this.phase!=='playing')return;this.phase='results';this.win={team:winner,reason};this.event(this.teamName(winner)+' WINS — '+reason,winner)}
+ snapshot(viewTeam=null){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,scenario:this.scenario,territory:this.territorySnapshot(),theatreId:this.theatreId,mode:this.mode,mines:viewTeam===null?[]:this.visibleMines(viewTeam),mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0),nextWaveIn:Math.ceil(this.mission.nextWaveIn||0),evacuated:Math.floor(this.mission.evacuated||0)}:null,stats:this.stats.map(value=>({...value})),world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
+  teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),supplyCap:this.supplyCap(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
   units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order,dest:u.dest&&u.order!=='plant'?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null,job:u.job&&(u.order==='plant'||u.order==='defuse')?Math.round(100*u.job.progress/(u.order==='plant'?IED.plantTime:IED.defuseTime)):null})),
-  bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius})),
+  bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius,production:b.production?{...b.production,progress:Math.round(b.production.progress*10)/10}:null})),
   structures:this.structures.map(structure=>({...structure,hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
   nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
   blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }
 }
+Object.assign(Game.prototype,territoryMethods);
 module.exports={Game};

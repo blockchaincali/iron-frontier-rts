@@ -69,6 +69,7 @@ async function runDesktop(browser){
  await title(page,'Prepare, then begin',20000);
  await page.waitForFunction(()=>window.IronBridge.snapshot().mission.stage==='prepare');
  await page.locator('#begin-defense:not([disabled])').click();
+ await page.waitForFunction(()=>window.IronBridge.snapshot().mission.stage==='warning');await page.locator('#begin-defense:not([disabled])').click();
  await title(page,'Repel the first attack');
  await page.waitForFunction(()=>{const state=window.IronBridge.snapshot();return state.training===false&&state.mission.stage==='protect'&&state.units.some(unit=>unit.team===1)});
  await page.locator('#tutorial-ready').click();
