@@ -7,6 +7,10 @@ const PORT=Number(process.env.PORT||3000),rooms=new Map(),STEP=0.05;
 const uid=()=>crypto.randomBytes(9).toString('hex');
 const newCode=()=>Array.from(crypto.randomBytes(4),n=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[n%32]).join('');
 const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify(data))};
+// State snapshots supersede each other: on a slow connection drop the stale one instead of queueing it,
+// otherwise the player's view falls further and further behind and the game appears to freeze.
+const STATE_BACKLOG=48*1024;
+const sendState=(ws,data)=>{if(ws?.readyState!==WebSocket.OPEN)return;if(ws.bufferedAmount>STATE_BACKLOG&&data.phase==='playing'){ws.skipped=(ws.skipped||0)+1;return}ws.send(JSON.stringify(data))};
 const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/home.js':'home.js','/town.js':'town.js','/platform.js':'platform.js','/audio.js':'audio.js','/catalog.js':'catalog.js','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/homestand-poster.jpg':'assets/homestand-poster.jpg','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
 // Browsers receive the minified Three.js build; the stable /vendor/three.module.js URL keeps the import map unchanged.
 const vendorFiles={'/vendor/three.module.js':['three','build','three.module.min.js'],'/vendor/three.core.min.js':['three','build','three.core.min.js'],'/vendor/three.core.js':['three','build','three.core.min.js'],'/vendor/BufferGeometryUtils.js':['three','examples','jsm','utils','BufferGeometryUtils.js']};
@@ -29,12 +33,13 @@ const server=http.createServer((req,res)=>{
  const file=staticFiles[pathname];if(!file){res.writeHead(404);return res.end('Not found')}
  serveFile(req,res,path.join(__dirname,'public',file),'public,max-age=60')
 });
-const wss=new WebSocketServer({server,path:'/ws',maxPayload:8192});
+// Snapshots are repetitive JSON: per-message deflate cuts bandwidth roughly five-fold.
+const wss=new WebSocketServer({server,path:'/ws',maxPayload:8192,perMessageDeflate:{threshold:512,zlibDeflateOptions:{level:4,memLevel:7},concurrencyLimit:8}});
 const participants=room=>room.game.participants;
 const broadcast=(room,payload)=>{for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),payload)};
 const broadcastState=room=>{
  const snap=room.game.snapshot();room.sentPhase=room.game.phase;
- for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),{type:'state',me:p.id,team:p.team,host:p.id===room.hostId,...snap,mines:room.game.visibleMines(p.team),events:room.game.scenario==='territory'?snap.events.filter(e=>e.team===null||e.team===undefined||e.team===p.team):snap.events});
+ for(const p of participants(room))if(!p.bot)sendState(room.sockets.get(p.id),{type:'state',me:p.id,team:p.team,host:p.id===room.hostId,...snap,mines:room.game.visibleMines(p.team),events:room.game.scenario==='territory'?snap.events.filter(e=>e.team===null||e.team===undefined||e.team===p.team):snap.events});
 };
 function register(ws,room,p,existing=false){
  const old=room.sockets.get(p.id);if(old&&old!==ws){try{old.close(4000,'Reconnected')}catch{}}

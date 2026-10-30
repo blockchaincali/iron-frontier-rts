@@ -39,6 +39,21 @@ Direct recruiting from the HQ is closed in this mode: units come from production
 
 Every producer (HQ for engineers, barracks, workshop, factory) has a queue of up to 20 orders. Set the quantity (1, 5, 10 or a typed number) before tapping a unit and the building trains them back to back. Each order is charged when it starts, so a queue never spends credits in advance; if supply or credits run short the building shows *Waiting* and resumes automatically. **Clear queue** cancels unstarted orders.
 
+## Civilians, capture and rescue (`src/civilians.js`)
+
+24 residents live in the contested town and go about their day until the battle is live.
+
+| Rule | Detail |
+|---|---|
+| Panic | Raiders within 150 px or a nearby blast send civilians running to the nearest Civilian Shelter (6 places) or intact community facility (4 places). Sheltered people are hidden and safe; they come out after 14 s of calm. A destroyed shelter turns them out again. |
+| Seizing | A raider rifle squad (carries 1) or patrol vehicle (carries 3) standing next to a civilian grabs them in 1.6 s. A full escort heads for the raider camp automatically. Delivery pays raiders 150 CR; each civilian held at the camp moves 1 CR/s from the defence to the raiders. |
+| Interception | Destroy the escort and the captive breaks free and runs for shelter. |
+| Rescue | A defence rifle squad or patrol beside a held captive frees them in 2.2 s and escorts them home; reaching defence territory or a refuge pays 120 CR. |
+| Stray fire | Splash weapons (tank shells, rockets, patrol cannon, orbital strikes, IEDs) hurt any civilian in the blast radius, whichever side fired. Each civilian killed by defence fire costs the defence 60 CR. Plain rifle fire never hits bystanders. Nobody is harmed during the ceasefire. |
+| AI | Raider AI sends snatch teams (Easy 1, Standard 2, Veteran 3); defence AI sends rescue teams after captives (Standard 2, Veteran 3), on the same pacing as their first assault. |
+
+The objective chip shows how many civilians are safe, taken and lost; results show civilians safe, captives rescued or seized, and casualties from your own fire.
+
 ## AI (`src/ai.js`)
 
 One `FactionAI` plays either side with the human rules (plots, tech, costs, supply, ceasefire).
@@ -56,7 +71,10 @@ PvP matches never use AI or difficulty scaling.
 
 `create` validates scenario, faction, prep length (3/5), difficulty and city; the guest of a private room takes the free faction. New `assist` action. Every construction, production, command and strike is validated server-side against faction, plot ownership, build area, tech and ceasefire. Each player only receives their own faction's private events (production, construction) and their own and detected IEDs.
 
-## Performance
+## Performance and network
+
+Snapshots use WebSocket per-message deflate (about 18 KB → 3–4 KB each). On a slow link the server drops a stale snapshot rather than queueing it, the client draws only the newest snapshot per frame, and if no update arrives for 2.5 s the HUD shows *SLOW LINK*; after 7 s the client reconnects to the same room.
+
 
 Transient effect materials are retired without disposal so the GPU keeps compiled shader programs (disposal caused multi-second recompile stalls in large fights); bullet-impact sparks no longer spawn full blast models; render resolution and shadows drop automatically when the frame rate stays low.
 

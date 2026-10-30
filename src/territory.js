@@ -30,6 +30,7 @@ const territory={
   this.caches=[{id:'cache-credits',kind:'cache',reward:'credits',x:1330,y:560,radius:26,claimedBy:null},{id:'cache-energy',kind:'cache',reward:'energy',x:1070,y:560,radius:26,claimedBy:null},{id:'cache-repair',kind:'cache',reward:'repair',x:1330,y:790,radius:26,claimedBy:null}];
   this.territory={stage:'prepare',stageTime:0,prepDuration:this.prepMinutes*60,warningDuration:WARNING_SECONDS,liveTime:0,liveDuration:LIVE_SECONDS,winPoints:WIN_POINTS,threat:null,lost:[0,0]};
   this.ais=new Map();
+  this.resetCivilians();
  },
  startTerritory(){
   for(let team=0;team<2;team++){const hq=this.bases[team],side=team===0?1:-1;

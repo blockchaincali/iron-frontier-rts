@@ -7,9 +7,9 @@ const {UNITS,STRUCTURES,CATALOG}=require('./config');
 const MAPS=require('../public/maps');
 
 const PROFILES={
- recruit:{period:3.6,engineers:2,parallel:1,assist:false,repair:false,reserve:40,attackSupply:6,firstAttack:110,attackEvery:130,maxSupply:22,captureSquads:1,mix:['rifle','rifle','rifle','patrol'],ied:0,split:false,announce:true,orderLength:7},
- standard:{period:2.2,engineers:3,parallel:2,assist:false,repair:true,reserve:110,attackSupply:12,firstAttack:45,attackEvery:85,maxSupply:40,captureSquads:2,mix:['rifle','rifle','patrol','tank','rocket'],ied:.08,split:false,announce:true,orderLength:11},
- veteran:{period:1.2,engineers:4,parallel:3,assist:true,repair:true,reserve:150,attackSupply:18,firstAttack:12,attackEvery:60,maxSupply:56,captureSquads:3,mix:['rifle','patrol','tank','tank','rocket','rocket'],ied:.2,split:true,announce:false,orderLength:99}
+ recruit:{snatch:1,rescue:0,period:3.6,engineers:2,parallel:1,assist:false,repair:false,reserve:40,attackSupply:6,firstAttack:110,attackEvery:130,maxSupply:22,captureSquads:1,mix:['rifle','rifle','rifle','patrol'],ied:0,split:false,announce:true,orderLength:7},
+ standard:{snatch:2,rescue:2,period:2.2,engineers:3,parallel:2,assist:false,repair:true,reserve:110,attackSupply:12,firstAttack:45,attackEvery:85,maxSupply:40,captureSquads:2,mix:['rifle','rifle','patrol','tank','rocket'],ied:.08,split:false,announce:true,orderLength:11},
+ veteran:{snatch:3,rescue:3,period:1.2,engineers:4,parallel:3,assist:true,repair:true,reserve:150,attackSupply:18,firstAttack:12,attackEvery:60,maxSupply:56,captureSquads:3,mix:['rifle','patrol','tank','tank','rocket','rocket'],ied:.2,split:true,announce:false,orderLength:99}
 };
 const BUILD_ORDER={
  0:['barracks','collector','depot','watchtower','workshop','comms','guardpost','bunker','factory','depot','emplacement','clinic','watchtower','bunker','emplacement','depot'],
@@ -103,9 +103,11 @@ class FactionAI{
   // Scanners stay with the army and clear any charges they detect.
   for(const scanner of this.own('scanner')){if(scanner.order==='defuse')continue;const charge=g.mines.find(m=>m.team!==this.team&&m.revealed[this.team]&&dist(scanner,m)<560);if(charge){g.defuseIed(this.team,[scanner.id],charge.id);continue}const lead=army.find(u=>this.attackers.has(u.id))||army[0];if(lead&&dist(scanner,lead)>120){scanner.order='move';scanner.dest={x:lead.x-60,y:lead.y};scanner.hold=false}}
   // Checkpoint squads: capture neutral or enemy checkpoints (allowed during the ceasefire).
-  const squads=army.filter(u=>u.type==='rifle'&&!this.attackers.has(u.id)).slice(0,this.p.captureSquads),targets=g.nodes.filter(n=>n.owner!==this.team).sort((a,b)=>dist(a,rally)-dist(b,rally));
+  const squads=army.filter(u=>u.type==='rifle'&&!this.attackers.has(u.id)&&!u.civTask&&!u.escort).slice(0,this.p.captureSquads),targets=g.nodes.filter(n=>n.owner!==this.team).sort((a,b)=>dist(a,rally)-dist(b,rally));
   squads.forEach((u,i)=>{const node=targets[i%Math.max(1,targets.length)];if(node&&(!u.dest||dist(u.dest,node)>60)&&!g.ceasefireBlocks(this.team,node.x,node.y)){u.order='move';u.hold=false;u.dest={x:node.x+(i-1)*24,y:node.y};u.path=null;u.captureSquad=true}});
-  const home=army.filter(u=>!this.attackers.has(u.id)&&!u.captureSquad);
+  // Snatch and rescue teams follow the same difficulty pacing as the first assault.
+  if(t.stage==='live'&&t.liveTime>=this.p.firstAttack*.6)this.civilianOps(army);
+  const home=army.filter(u=>!this.attackers.has(u.id)&&!u.captureSquad&&!u.civTask&&!u.escort);
   if(t.stage!=='live'){for(const u of home)if(!u.dest||dist(u.dest,rally)>160){u.order='move';u.hold=false;u.dest={x:rally.x+(Math.random()-.5)*120,y:rally.y+(Math.random()-.5)*160};u.path=null}return}
   // Defend home territory first.
   // The defence also treats the town and its outposts as home ground.
@@ -124,6 +126,23 @@ class FactionAI{
    this.lastAttack=g.time;this.attackCount++;this.opening=null;
    if(this.p.ied&&Math.random()<this.p.ied*3){const planter=home.find(u=>u.type==='rifle');const spot=this.routePath(route)[0];if(planter&&spot)g.plantIed(this.team,[planter.id],spot.x+(this.team===1?-120:120),spot.y+(Math.random()-.5)*60)}
   }
+ }
+ // Raiders send snatch teams into the town; the defence sends rescue teams after captives.
+ civilianOps(army){
+  const g=this.game;if(!g.civilians)return;
+  const raider=this.team===1,want=raider?this.p.snatch:this.p.rescue;
+  for(const u of army)if(u.civTask&&!g.civilians.some(c=>c.id===u.civTask&&(raider?['free','fleeing']:['captive','held']).includes(c.state)))u.civTask=null;
+  const targets=g.civilians.filter(c=>raider?['free','fleeing'].includes(c.state):['captive','held'].includes(c.state));
+  if(!targets.length||!want)return;
+  const busy=army.filter(u=>u.civTask),free=army.filter(u=>!u.civTask&&!u.escort&&!this.attackers.has(u.id)&&['rifle','patrol'].includes(u.type));
+  for(const u of free.slice(0,Math.max(0,want-busy.length))){
+   const taken=new Set(army.map(v=>v.civTask)),c=targets.filter(c=>!taken.has(c.id)).sort((a,b)=>dist(a,u)-dist(b,u))[0]||targets[0];
+   u.civTask=c.id;
+  }
+  for(const u of army.filter(u=>u.civTask&&!u.escort)){const c=g.civilians.find(c=>c.id===u.civTask);if(!c)continue;
+   const carrier=c.by&&g.units.find(v=>v.id===c.by);
+   if(carrier&&carrier.team!==this.team){u.order='attackmove';u.targetId=carrier.id;u.dest={x:carrier.x,y:carrier.y}}else{u.order='move';u.dest={x:c.x,y:c.y};u.targetId=null}
+   u.hold=false;u.path=null}
  }
  planWeakest(){this.opening=null;return this.planOpening()}
 }
