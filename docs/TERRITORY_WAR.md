@@ -1,4 +1,4 @@
-# Territory War (Milestone 1)
+# Territory War
 
 Asymmetrical RTS mode: **Community Defence** (team 0, west) against the fictional **Black Harmattan Raiders** (team 1, east), with the community's town and two outposts between them. Choose it from **Missions → Territory War**: pick a side, a 5-minute (recommended) or 3-minute preparation and an AI difficulty, then **Play vs AI** or **Host vs friend**. The city skin follows the campaign city selected on the map.
 
@@ -17,7 +17,7 @@ Asymmetrical RTS mode: **Community Defence** (team 0, west) against the fictiona
 
 1. **Prepare** (5:00 or 3:00): ceasefire. Build, train, capture neutral checkpoints and stage at the border. Units cannot cross into enemy territory, and no damage is dealt. *Ready* (solo) or both commanders ready (PvP) jumps straight to the warning — never to combat.
 2. **Threat warning** (2:00): still a ceasefire. The AI attacker commits to a route; defenders get an intelligence estimate (Easy: confirmed, Standard: ~75% reliable, Veteran: unknown). Solo players may start early; multiplayer cannot skip it.
-3. **Live** (20:00): full combat, invasion of either territory, orbital strikes, IEDs. Score: +1/s per checkpoint held, +40 per enemy structure destroyed, +120 to raiders per civilian site destroyed. First to 1,500 or destroying the enemy HQ wins; otherwise the higher score at the time limit.
+3. **Live**: full combat, invasion of either territory, orbital strikes, IEDs. There is no score or time limit: **a faction is defeated only when its Command HQ is destroyed**. Lost buildings, units or checkpoints never end the match. The results screen is pushed to both players the instant an HQ falls.
 
 Safe Haven uses the same timing: 5:00 preparation (3:00 configurable on the server), then a 2:00 warning before the first wave.
 
@@ -34,6 +34,10 @@ Safe Haven uses the same timing: 5:00 preparation (3:00 configurable on the serv
 | Production | Barracks (Training Camp) → infantry; Vehicle Workshop (Technical Yard) → patrol vehicles, scanners; Armoured Vehicle Factory (Heavy Garage) → tanks, rocket batteries | Workshop needs Barracks; factory needs Workshop + Comms |
 
 Direct recruiting from the HQ is closed in this mode: units come from production buildings.
+
+### Production queues
+
+Every producer (HQ for engineers, barracks, workshop, factory) has a queue of up to 20 orders. Set the quantity (1, 5, 10 or a typed number) before tapping a unit and the building trains them back to back. Each order is charged when it starts, so a queue never spends credits in advance; if supply or credits run short the building shows *Waiting* and resumes automatically. **Clear queue** cancels unstarted orders.
 
 ## AI (`src/ai.js`)
 
@@ -52,6 +56,10 @@ PvP matches never use AI or difficulty scaling.
 
 `create` validates scenario, faction, prep length (3/5), difficulty and city; the guest of a private room takes the free faction. New `assist` action. Every construction, production, command and strike is validated server-side against faction, plot ownership, build area, tech and ceasefire. Each player only receives their own faction's private events (production, construction) and their own and detected IEDs.
 
+## Performance
+
+Transient effect materials are retired without disposal so the GPU keeps compiled shader programs (disposal caused multi-second recompile stalls in large fights); bullet-impact sparks no longer spawn full blast models; render resolution and shadows drop automatically when the frame rate stays low.
+
 ## Tests
 
-`test/territory.test.js` (14 tests) and new cases in `test/rooms.test.js` cover starting state, layout, phase timing, ready-up rules, ceasefire, invasion, plots and tech, build areas, parallel and assisted construction, HQ and building production, supply, raider naming and economy, scoring and rematch, AI legality and difficulty differences, room faction assignment and reconnect.
+`test/territory.test.js` (16 tests) and new cases in `test/rooms.test.js` cover starting state, layout, phase timing, ready-up rules, ceasefire, invasion, plots and tech, build areas, parallel and assisted construction, HQ and building production, supply, raider naming and economy, HQ-only defeat, production queues, rematch, AI legality and difficulty differences, room faction assignment and reconnect.

@@ -56,3 +56,8 @@ test('Territory War rooms honour the chosen faction, give the guest the other si
  // Reconnect restores the same faction and match.
  const id=guest.last('joined').id,again=wss.connect();again.receive({type:'join',code,id});assert.equal(again.last('joined').team,0);assert.equal(again.last('state').territory.stage,'warning');
 });
+test('the results state is pushed to players the moment a match ends, without any player action',()=>{
+ const ws=wss.connect();ws.receive({type:'create',mode:'solo',scenario:'territory',name:'Watcher'});const room=rooms.get(ws.last('joined').code);ws.received.length=0;
+ room.game.end(1,'COMMUNITY HQ DESTROYED');
+ return new Promise(resolve=>setTimeout(resolve,200)).then(()=>{assert.ok(ws.received.some(m=>m.type==='state'&&m.phase==='results'),'results broadcast without an action')});
+});

@@ -5,7 +5,7 @@ const {territory:territoryMethods,PREP_CHOICES}=require('./territory');
 const {CATALOG}=require('./config');
 // Safe Haven assault pacing per difficulty: seconds between waves, opening size, growth per wave and cap.
 const WAVE_PLAN={recruit:{gap:24,base:2,grow:1,max:6},standard:{gap:18,base:3,grow:1.4,max:9},veteran:{gap:13,base:4,grow:2,max:12}};
-const LANES=[360,675,960];
+const LANES=[360,675,960],QUEUE_LIMIT=20;
 const rnum=(min,max)=>min+Math.random()*(max-min);
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const hypot=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -90,13 +90,29 @@ class Game {
   const structure={id:this.nextId('s'),team,type,x:px,y:py,hp:Math.ceil(definition.hp*.3),maxHp:definition.hp,radius:definition.radius,status:'building',progress:0,buildTime:definition.buildTime,level:1,cd:0,production:null,upgradeProgress:0,builderId:builders[0].id,builders:0,plotId:site?.plotId||null};this.structures.push(structure);
   for(const builder of builders){builder.order='construct';builder.dest={x:px,y:py};builder.targetId=structure.id;builder.hold=false;builder.job=null;builder.path=null}this.event('CONSTRUCTION STARTED - '+(territory?CATALOG.name(type,team):definition.label).toUpperCase(),team);return {ok:true,structure};
  }
- produce(team,structureId,type){
+ // Production queues: up to 20 orders per building. Each order is paid for when it starts, so a
+ // long queue waits for credits and supply instead of failing.
+ produce(team,structureId,type,count=1){
   const recipe=CATALOG.PRODUCTION[type],definition=UNITS[type];if(!recipe||!definition||recipe.from==='hq'&&this.scenario!=='territory')return {ok:false,reason:'That unit cannot be produced here'};
   const producer=recipe.from==='hq'?this.bases.find(b=>b.id===structureId&&b.team===team&&b.kind==='hq'&&b.hp>0):this.structures.find(s=>s.id===structureId&&s.team===team&&s.type===recipe.from&&s.status==='active'&&(STRUCTURES[s.type].produces||[]).includes(type));
-  if(!producer)return {ok:false,reason:'Select an active '+(recipe.from==='hq'?'command HQ':CATALOG.name(recipe.from,team).toLowerCase())};if(producer.production)return {ok:false,reason:'Production queue is busy'};
-  const queued=[...this.structures,...this.bases].filter(value=>value.team===team&&value.production).reduce((sum,value)=>sum+(UNITS[value.production.type]?.supply||0),0);if(this.supply(team)+queued+definition.supply>this.supplyCap(team))return {ok:false,reason:'Unit supply cap reached - build a supply depot'};if(this.teams[team].credits<definition.cost)return {ok:false,reason:'Need '+definition.cost+' credits'};
-  this.teams[team].credits-=definition.cost;producer.production={type,progress:0,duration:recipe.time};this.event(this.scenario==='territory'?CATALOG.UNIT_NAMES[team][type].toUpperCase()+' IN PRODUCTION':(type==='rifle'?'INFANTRY SQUAD TRAINING':type==='scanner'?'EAGLE-EYE SCANNER IN PRODUCTION':'PROTECTED PATROL VEHICLE IN PRODUCTION'),team);return {ok:true};
+  if(!producer)return {ok:false,reason:'Select an active '+(recipe.from==='hq'?'command HQ':CATALOG.name(recipe.from,team).toLowerCase())};
+  const queue=producer.queue||(producer.queue=[]),used=queue.length+(producer.production?1:0),wanted=clamp(Math.floor(Number(count)||1),1,QUEUE_LIMIT);
+  if(used>=QUEUE_LIMIT)return {ok:false,reason:'Queue full ('+QUEUE_LIMIT+')'};
+  if(!used){const blocked=this.productionBlocked(team,type);if(blocked&&wanted===1)return {ok:false,reason:blocked}}
+  const added=Math.min(wanted,QUEUE_LIMIT-used);for(let i=0;i<added;i++)queue.push(type);
+  this.startNextProduction(producer);
+  if(added>1)this.event((added>1?added+' × ':'')+(this.scenario==='territory'?CATALOG.UNIT_NAMES[team][type]:UNITS[type].label).toUpperCase()+' QUEUED',team);
+  return {ok:true,queued:added};
  }
+ productionBlocked(team,type){const definition=UNITS[type],queued=[...this.structures,...this.bases].filter(value=>value.team===team&&value.production).reduce((sum,value)=>sum+(UNITS[value.production.type]?.supply||0),0);
+  if(this.supply(team)+queued+definition.supply>this.supplyCap(team))return 'Unit supply cap reached - build a supply depot';if(this.teams[team].credits<definition.cost)return 'Need '+definition.cost+' credits';return null}
+ startNextProduction(producer){
+  if(producer.production||!producer.queue?.length)return;const type=producer.queue[0],blocked=this.productionBlocked(producer.team,type);producer.waiting=blocked;if(blocked)return;
+  producer.queue.shift();this.teams[producer.team].credits-=UNITS[type].cost;producer.production={type,progress:0,duration:CATALOG.PRODUCTION[type].time};
+  if(this.scenario==='territory')this.event(CATALOG.UNIT_NAMES[producer.team][type].toUpperCase()+' IN PRODUCTION',producer.team);
+  else if(!producer.queue.length)this.event(type==='rifle'?'INFANTRY SQUAD TRAINING':type==='scanner'?'EAGLE-EYE SCANNER IN PRODUCTION':'PROTECTED PATROL VEHICLE IN PRODUCTION',producer.team);
+ }
+ cancelQueue(team,structureId){const producer=[...this.structures,...this.bases].find(v=>v.id===structureId&&v.team===team);if(!producer)return {ok:false,reason:'Select one of your buildings'};const n=producer.queue?.length||0;producer.queue=[];producer.waiting=null;return {ok:true,cleared:n}}
  repairStructure(team,structureId,builderIds){
   const structure=this.structures.find(value=>value.id===structureId&&value.team===team&&value.status==='active');if(!structure)return {ok:false,reason:'Select a completed friendly defense'};if(structure.hp>=structure.maxHp)return {ok:false,reason:'This defense is already at full health'};const engineer=this.units.find(unit=>unit.team===team&&unit.type==='engineer'&&builderIds?.includes(unit.id));if(!engineer)return {ok:false,reason:'Select an engineer vehicle to repair'};engineer.order='repair';engineer.dest={x:structure.x,y:structure.y};engineer.targetId=structure.id;engineer.hold=false;this.event('ENGINEER DISPATCHED FOR MAINTENANCE',team);return {ok:true};
  }
@@ -332,8 +348,9 @@ class Game {
    if(structure.type==='clinic'){const amount=STRUCTURES.clinic.heal*(structure.level===2?1.45:1)*dt;for(const unit of this.units.filter(unit=>unit.team===structure.team&&unit.hp<unit.maxHp&&Math.hypot(unit.x-structure.x,unit.y-structure.y)<155))unit.hp=Math.min(unit.maxHp,unit.hp+amount)}
   }
   for(const producer of [...this.structures.filter(s=>s.status==='active'),...this.bases.filter(b=>b.kind==='hq'&&b.hp>0)]){
+   if(!producer.production)this.startNextProduction(producer);
    if(!producer.production)continue;producer.production.progress+=dt;if(producer.production.progress<producer.production.duration)continue;
-   const produced=producer.production.type,offset=producer.radius+36,dir=producer.team===0?1:-1;this.stats[producer.team].trained++;const unit=this.spawnAt(producer.team,produced,producer.x+dir*offset,producer.y+(producer.kind==='hq'?rnum(-50,50):0));if(unit)unit.angle=producer.team===0?0:Math.PI;producer.production=null;
+   const produced=producer.production.type,offset=producer.radius+36,dir=producer.team===0?1:-1;this.stats[producer.team].trained++;const unit=this.spawnAt(producer.team,produced,producer.x+dir*offset,producer.y+(producer.kind==='hq'?rnum(-50,50):0));if(unit)unit.angle=producer.team===0?0:Math.PI;producer.production=null;this.startNextProduction(producer);
    this.event(this.scenario==='territory'?CATALOG.UNIT_NAMES[producer.team][produced].toUpperCase()+' READY':produced==='rifle'?'INFANTRY SQUAD READY':produced==='scanner'?'EAGLE-EYE SCANNER DEPLOYED':'PROTECTED PATROL VEHICLE DEPLOYED',producer.team);
   }
  }
@@ -389,8 +406,8 @@ class Game {
  snapshot(viewTeam=null){return {difficulty:this.difficulty,mapId:this.mapId,missionId:this.missionId,scenario:this.scenario,territory:this.territorySnapshot(),theatreId:this.theatreId,mode:this.mode,mines:viewTeam===null?[]:this.visibleMines(viewTeam),mission:this.mission?{...this.mission,prepareRemaining:Math.ceil(this.mission.prepareRemaining||0),nextWaveIn:Math.ceil(this.mission.nextWaveIn||0),evacuated:Math.floor(this.mission.evacuated||0)}:null,stats:this.stats.map(value=>({...value})),world:{w:W,h:H,bounds:{...BOUNDS}},terrainSeed:this.terrainSeed,training:this.training,code:this.code,phase:this.phase,time:Math.round(this.time*10)/10,timeLeft:Math.max(0,Math.ceil(this.duration-this.time)),round:this.round,win:this.win,
   teams:this.teams.map((t,i)=>({...t,supply:this.supply(i),supplyCap:this.supplyCap(i),powerCooldown:Math.max(0,t.powerCooldown-this.time)})),
   units:this.units.map(u=>({id:u.id,team:u.team,type:u.type,x:Math.round(u.x),y:Math.round(u.y),hp:Math.ceil(u.hp),maxHp:u.maxHp,angle:u.angle,order:u.order,dest:u.dest&&u.order!=='plant'?{x:Math.round(u.dest.x),y:Math.round(u.dest.y)}:null,job:u.job&&(u.order==='plant'||u.order==='defuse')?Math.round(100*u.job.progress/(u.order==='plant'?IED.plantTime:IED.defuseTime)):null})),
-  bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius,production:b.production?{...b.production,progress:Math.round(b.production.progress*10)/10}:null})),
-  structures:this.structures.map(structure=>({...structure,hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
+  bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius,production:b.production?{...b.production,progress:Math.round(b.production.progress*10)/10}:null,queue:b.queue?[...b.queue]:[],waiting:b.waiting||null})),
+  structures:this.structures.map(structure=>({...structure,queue:structure.queue?[...structure.queue]:[],hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
   nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
   blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }

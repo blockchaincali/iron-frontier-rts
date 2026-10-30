@@ -67,9 +67,7 @@ const territory={
   else if(t.stage==='live'){t.liveTime+=dt;
    if(this.incomeClockTerritory===undefined)this.incomeClockTerritory=0;this.incomeClockTerritory+=dt;
    if(this.incomeClockTerritory>=1){this.incomeClockTerritory-=1;for(const n of this.nodes)if(n.owner>=0)this.teams[n.owner].points+=1}
-   const leader=this.teams[0].points===this.teams[1].points?null:this.teams[0].points>this.teams[1].points?0:1;
-   if(this.teams.some(team=>team.points>=t.winPoints))this.end(leader,'TERRITORY CONTROL');
-   else if(t.liveTime>=t.liveDuration)this.end(leader??(this.bases[0].hp>=this.bases[1].hp?0:1),'TIME LIMIT');
+   // Score is a running tally only: a side is defeated solely when its HQ is destroyed.
   }
  },
  territoryIncome(seconds){
@@ -115,7 +113,7 @@ const territory={
  },
  territorySnapshot(){
   const t=this.territory;if(!t)return null;
-  const remaining=t.stage==='prepare'?t.prepDuration-t.stageTime:t.stage==='warning'?t.warningDuration-t.stageTime:t.liveDuration-t.liveTime;
+  const remaining=t.stage==='prepare'?t.prepDuration-t.stageTime:t.stage==='warning'?t.warningDuration-t.stageTime:t.liveTime;
   return {stage:t.stage,remaining:Math.max(0,Math.ceil(remaining)),prepDuration:t.prepDuration,warningDuration:t.warningDuration,liveDuration:t.liveDuration,winPoints:t.winPoints,threat:t.threat,ready:t.ready||null,
    ai:[...this.ais.values()].map(ai=>({team:ai.team,level:ai.level}))};
  }

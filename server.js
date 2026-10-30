@@ -33,7 +33,7 @@ const wss=new WebSocketServer({server,path:'/ws',maxPayload:8192});
 const participants=room=>room.game.participants;
 const broadcast=(room,payload)=>{for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),payload)};
 const broadcastState=room=>{
- const snap=room.game.snapshot();
+ const snap=room.game.snapshot();room.sentPhase=room.game.phase;
  for(const p of participants(room))if(!p.bot)send(room.sockets.get(p.id),{type:'state',me:p.id,team:p.team,host:p.id===room.hostId,...snap,mines:room.game.visibleMines(p.team),events:room.game.scenario==='territory'?snap.events.filter(e=>e.team===null||e.team===undefined||e.team===p.team):snap.events});
 };
 function register(ws,room,p,existing=false){
@@ -70,7 +70,8 @@ function action(ws,msg){
   case 'build':outcome=game.spawn(player.team,String(msg.unitType||''));break;
   case 'construct':outcome=game.constructionSite(player.team,String(msg.structureType||''),msg.x,msg.y,msg.builderIds,msg.plotId?String(msg.plotId):null);break;
   case 'assist':outcome=game.assistStructure(player.team,String(msg.structureId||''),msg.builderIds);break;
-  case 'produce':outcome=game.produce(player.team,String(msg.structureId||''),String(msg.unitType||''));break;
+  case 'produce':outcome=game.produce(player.team,String(msg.structureId||''),String(msg.unitType||''),msg.count);break;
+  case 'cancelQueue':outcome=game.cancelQueue(player.team,String(msg.structureId||''));break;
   case 'repair':outcome=game.repairStructure(player.team,String(msg.structureId||''),msg.builderIds);break;
   case 'upgrade':outcome=game.upgradeStructure(player.team,String(msg.structureId||''));break;
   case 'command':outcome=game.command(player.team,msg.unitIds,msg.action,msg.x,msg.y,msg.targetId);break;
@@ -109,6 +110,9 @@ let accumulator=0,last=performance.now(),broadcastClock=0;
 const loop=setInterval(()=>{
  const now=performance.now();accumulator=Math.min(0.25,accumulator+(now-last)/1000);last=now;
  while(accumulator>=STEP){for(const room of rooms.values())if(room.game.phase==='playing')room.game.step(STEP);accumulator-=STEP;broadcastClock+=STEP}
+ // Rooms that just changed phase (victory, defeat, rematch) are broadcast immediately so the
+ // results screen appears the moment a match ends, not on the player's next action.
+ for(const room of rooms.values())if(room.sentPhase!==undefined&&room.sentPhase!==room.game.phase)broadcastState(room);
  if(broadcastClock>=0.15){broadcastClock=0;for(const room of rooms.values())if(room.game.phase==='playing')broadcastState(room)}
  const age=Date.now();for(const [code,room] of rooms){if(![...room.sockets.values()].some(ws=>ws.readyState===WebSocket.OPEN)&&age-room.lastActivity>5*60*1000)rooms.delete(code)}
 },50);loop.unref();

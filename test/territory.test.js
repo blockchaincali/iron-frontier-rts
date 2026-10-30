@@ -144,3 +144,22 @@ test('the AI builds a real base, respects the ceasefire, and difficulty changes 
  assert.ok(results.veteran.crossed!==null&&(results.recruit.crossed===null||results.veteran.crossed<results.recruit.crossed),JSON.stringify(results));
  assert.ok(results.veteran.engineers>results.recruit.engineers,JSON.stringify(results));
 });
+
+test('buildings take a production quantity, pay per unit as each starts, and wait instead of failing',()=>{
+ const g=war();g.teams[0].credits=5000;const barracks=g.constructionSite(0,'barracks',plot('dA').x,plot('dA').y).structure;finish(g,barracks);
+ const depot=g.constructionSite(0,'depot',plot('dB').x,plot('dB').y).structure;finish(g,depot);
+ g.teams[0].credits=130;const before=g.units.filter(u=>u.team===0&&u.type==='rifle').length;
+ assert.equal(g.produce(0,barracks.id,'rifle',5).queued,5);assert.equal(g.teams[0].credits,70,'only the first unit is paid up front');assert.equal(barracks.queue.length,4);
+ run(g,4.6);assert.equal(g.units.filter(u=>u.team===0&&u.type==='rifle').length,before+1);assert.equal(barracks.production?.type,'rifle','the next order starts automatically');
+ run(g,4.6);g.teams[0].credits=0;run(g,4.6);assert.equal(barracks.production,null);assert.match(barracks.waiting,/credits/,'the queue waits for money');
+ g.teams[0].credits=1000;run(g,.1);assert.ok(barracks.production,'and resumes when it can pay');
+ const room=20-barracks.queue.length-1;assert.equal(g.produce(0,barracks.id,'rifle',50).queued,room,'queues cap at 20');assert.match(g.produce(0,barracks.id,'rifle').reason,/full/);
+ assert.equal(g.cancelQueue(0,barracks.id).ok,true);assert.equal(barracks.queue.length,0);assert.equal(g.cancelQueue(1,barracks.id).ok,false);
+ const snap=g.snapshot();assert.ok(Array.isArray(snap.structures.find(s=>s.id===barracks.id).queue));
+});
+
+test('only destroying an HQ ends a territory war - score and time never do',()=>{
+ const g=war();g.completeTraining(0);g.completeTraining(1);run(g,120.2);g.teams[1].points=99999;g.territory.liveTime=99999;run(g,1);assert.equal(g.phase,'playing');
+ for(const f of g.facilities)g.applyDamage(f,f.hp+1,1);assert.equal(g.phase,'playing','losing every civilian site is not a defeat');
+ const hq=g.bases.find(b=>b.team===1);g.applyDamage(hq,hq.hp+1,0);assert.deepEqual(g.win,{team:0,reason:'RAIDER CAMP DESTROYED'});
+});
