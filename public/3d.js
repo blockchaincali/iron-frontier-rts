@@ -168,7 +168,7 @@ function contextRestored(){window.IronBridge?.notify('3D graphics restored');unm
 function resize(){if(!active||!canvas)return;const r=canvas.getBoundingClientRect();if(!r.width||!r.height)return;camera.aspect=r.width/r.height;camera.updateProjectionMatrix();renderer.setSize(r.width,r.height,false);constrainCamera()}
 function screenPoint(id){const item=entries.get('unit'+id);if(!item||!camera||!canvas)return null;const point=item.g.localToWorld(new THREE.Vector3(0,1,0)).project(camera),rect=canvas.getBoundingClientRect();return {x:rect.left+(point.x+1)*rect.width/2,y:rect.top+(1-point.y)*rect.height/2}}
 function worldPoint(x,y){if(!camera||!canvas)return null;const point=new THREE.Vector3(toX(x),0,toZ(y)).project(camera),rect=canvas.getBoundingClientRect();return {x:rect.left+(point.x+1)*rect.width/2,y:rect.top+(1-point.y)*rect.height/2}}
-function cameraBounds(){if(desiredRange>=82)return{x:0,z:0};const portrait=camera?.aspect<1?1.22:1,x=Math.max(2,35-(desiredRange-11)*.48*portrait),z=Math.max(1.5,18-(desiredRange-11)*.25);return{x,z}}
+function cameraBounds(){if(desiredRange>=82)return{x:0,z:0};const portrait=camera?.aspect<1?1.22:1,x=Math.max(2,35-(desiredRange-11)*.48*portrait),z=Math.max(4,21-(desiredRange-11)*.2);return{x,z}}
 function constrainCamera(){const bounds=cameraBounds();desiredTarget.x=clamp(desiredTarget.x,-bounds.x,bounds.x);desiredTarget.z=clamp(desiredTarget.z,-bounds.z,bounds.z)}
 function zoom(delta){cine=null;desiredRange=clamp(desiredRange-delta*17,11,86);constrainCamera();window.IronBridge?.tutorialCamera?.()}
 function center(x,y){desiredTarget.set(toX(x),0,toZ(y));constrainCamera()}
