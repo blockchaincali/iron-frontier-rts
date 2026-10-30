@@ -62,9 +62,10 @@ Every producer (HQ for engineers, barracks, workshop, factory) has a queue of up
 | Rule | Detail |
 |---|---|
 | Panic | Raiders within 150 px or a nearby blast send civilians running to the nearest Civilian Shelter (6 places) or intact community facility (4 places). Sheltered people are hidden and safe; they come out after 14 s of calm. A destroyed shelter turns them out again. |
-| Seizing | A raider rifle squad (carries 1) or patrol vehicle (carries 3) standing next to a civilian grabs them in 1.6 s. A full escort heads for the raider camp automatically. Delivery pays raiders 150 CR; each civilian held at the camp moves 1 CR/s from the defence to the raiders. |
+| Guarding | A civilian within 90 px of any defence unit (except hackers) cannot be seized. |
+| Seizing | A raider rifle squad (carries 1) or patrol vehicle (carries 3) standing next to a civilian grabs them in 2.2 s. A full escort heads for the raider camp automatically. Delivery pays raiders 150 CR; each civilian held at the camp moves 1 CR/s from the defence to the raiders. |
 | Interception | Destroy the escort and the captive breaks free and runs for shelter. |
-| Rescue | A defence rifle squad or patrol beside a held captive frees them in 2.2 s and escorts them home; reaching defence territory or a refuge pays 120 CR. |
+| Rescue | Captives are held in a pen deep in raider territory, outside the camp HQ's gun range. A defence rifle squad or patrol beside a held captive frees them in 2.2 s and escorts them home; reaching defence territory or a refuge pays 120 CR. |
 | Stray fire | Splash weapons (tank shells, rockets, patrol cannon, orbital strikes, IEDs) hurt any civilian in the blast radius, whichever side fired. Each civilian killed by defence fire costs the defence 60 CR. Plain rifle fire never hits bystanders. Nobody is harmed during the ceasefire. |
 | AI | Raider AI sends snatch teams (Easy 1, Standard 2, Veteran 3); defence AI sends rescue teams after captives (Standard 2, Veteran 3), on the same pacing as their first assault. |
 
@@ -107,6 +108,9 @@ PvP matches never use AI or difficulty scaling.
 - Press **Enter** in battle to open chat. The comms panel only appears when more than one human is in the room.
 
 ## Server and security
+
+Every connection has a command budget (20 per second, bursts of 40); a flood beyond that is dropped with a single *Too many commands* notice.
+
 
 `create` validates scenario, faction, prep length (3/5), difficulty and city; the guest of a private room takes the free faction. New `assist` action. Every construction, production, command and strike is validated server-side against faction, plot ownership, build area, tech and ceasefire. Each player only receives their own faction's private events (production, construction) and their own and detected IEDs.
 

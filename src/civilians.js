@@ -7,7 +7,7 @@
 const MAPS=require('../public/maps');
 const L=()=>MAPS.layouts.frontier;
 
-const CIV={count:24,hp:40,walk:22,run:48,captureRange:26,captureTime:1.6,rescueTime:2.2,panicRange:150,calm:14,
+const CIV={count:24,hp:40,walk:22,run:48,captureRange:26,captureTime:2.2,guardRange:90,rescueTime:2.2,panicRange:150,calm:14,
  carriers:{rifle:1,patrol:3},deliveryReward:150,rescueReward:120,heldIncome:1,casualtyPenalty:60,shelterCapacity:6};
 const NAMES=['Aisha','Musa','Ngozi','Emeka','Fatima','Ibrahim','Zainab','Tunde','Hauwa','Chinedu','Amina','Sani','Kemi','Yusuf','Blessing','Bala','Halima','Obi','Rakiya','Danjuma','Grace','Usman','Hadiza','Segun'];
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
@@ -25,7 +25,9 @@ const civilians={
   const facilities=this.facilities.filter(f=>f.hp>0&&!f.outpost).map(f=>({id:f.id,x:f.x,y:f.y,cap:4}));
   return [...shelters,...facilities];
  },
- campOf(team){const hq=this.bases[team];return {x:hq.x+(team===1?-70:70),y:hq.y+110}},
+ // The raider holding pen sits deep in raider territory but outside the camp HQ's gun range, so a
+ // rescue is a fight against the guards rather than a suicide run under the HQ.
+ campOf(team){const hq=this.bases[team];return team===1?{x:hq.x-30,y:hq.y+300}:{x:hq.x+70,y:hq.y+110}},
  carrierLoad(unit){return this.civilians.filter(c=>c.by===unit.id&&(c.state==='captive'||c.state==='rescued')).length},
  stepCivilians(dt){
   if(!this.civilians)return;
@@ -59,7 +61,9 @@ const civilians={
    }
    // free / fleeing
    if(live){
-    const captor=raiders.find(u=>CIV.carriers[u.type]&&dist(u,c)<CIV.captureRange+u.radius&&this.carrierLoad(u)<CIV.carriers[u.type]);
+    // Civilians standing near defence troops are protected from being seized.
+    const guarded=defenders.some(u=>u.type!=='hacker'&&dist(u,c)<CIV.guardRange);
+    const captor=!guarded&&raiders.find(u=>CIV.carriers[u.type]&&dist(u,c)<CIV.captureRange+u.radius&&this.carrierLoad(u)<CIV.carriers[u.type]);
     if(captor){c.progress+=dt;c.state='fleeing';if(c.progress>=CIV.captureTime)this.civTake(c,captor,'captive');continue}else c.progress=Math.max(0,c.progress-dt*.5);
     const danger=raiders.some(u=>dist(u,c)<CIV.panicRange)||this.blasts.some(b=>b.hit&&b.radius>30&&dist(b,c)<CIV.panicRange);
     if(danger&&c.state==='free'){c.state='fleeing';c.dest=null}

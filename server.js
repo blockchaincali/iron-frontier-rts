@@ -45,6 +45,7 @@ const broadcastState=room=>{
 // ---------- Chat and pings ----------
 // Messages are plain text (rendered with textContent on the client), trimmed, length-capped,
 // rate-limited per commander and lightly filtered. Team messages never reach the other side.
+const ACTION_RATE=20,ACTION_BURST=40;
 let chatSeq=0;
 const CHAT_MAX=140,CHAT_BURST=5,CHAT_WINDOW=8000,PING_GAP=1200,PING_KINDS=['attack','defend','help','look'];
 const BLOCKED=/\b(fuck|shit|bitch|cunt|nigger|faggot|bastard)\w*/gi;
@@ -144,7 +145,12 @@ function action(ws,msg){
 }
 wss.on('connection',ws=>{
  ws.alive=true;ws.on('pong',()=>{ws.alive=true});
- ws.on('message',raw=>{let msg;try{msg=JSON.parse(raw.toString())}catch{return}
+ // Per-connection token bucket: generous for real play (taps, drags, hotkeys), but a script flooding
+ // commands is throttled so one client cannot starve the simulation for everyone else.
+ ws.tokens=ACTION_BURST;ws.refill=Date.now();
+ ws.on('message',raw=>{const now=Date.now();ws.tokens=Math.min(ACTION_BURST,ws.tokens+(now-ws.refill)/1000*ACTION_RATE);ws.refill=now;
+  if(ws.tokens<1){if(!ws.throttled){ws.throttled=true;send(ws,{type:'notice',message:'Too many commands - slow down'})}return}ws.tokens-=1;ws.throttled=false;
+  let msg;try{msg=JSON.parse(raw.toString())}catch{return}
   if(!msg||typeof msg!=='object')return;
   if(msg.type==='create')return create(ws,msg);
   if(msg.type==='join')return join(ws,msg);

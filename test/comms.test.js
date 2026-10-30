@@ -56,3 +56,12 @@ test('One teammate leaving hands command over instead of ending the match',()=>{
  const {host,others,room}=versus();const [,mate]=others;host.receive({type:'start'});
  mate.receive({type:'leave'});assert.equal(room.game.phase,'playing');assert.match(host.last('chat').text,/has command/);
 });
+
+test('A flood of commands is throttled per connection without dropping normal play',()=>{
+ const ws=wss.connect();ws.receive({type:'create',mode:'solo',scenario:'territory',name:'Flood'});const room=rooms.get(ws.last('joined').code);
+ const unit=room.game.units.find(u=>u.team===0&&u.type==='rifle');
+ for(let i=0;i<30;i++)ws.receive({type:'command',action:'move',unitIds:[unit.id],x:300+i,y:600});
+ assert.equal(unit.dest.x,329,'a burst of 30 normal commands all land');
+ for(let i=0;i<200;i++)ws.receive({type:'command',action:'move',unitIds:[unit.id],x:400,y:600});
+ assert.ok(ws.all('notice').some(n=>/Too many commands/.test(n.message)));
+});
