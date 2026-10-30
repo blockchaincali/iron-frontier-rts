@@ -53,3 +53,8 @@ Additional browser validation commands are `npm run qa:ux`, `npm run qa:3d`, `np
 ## HOMESTAND release notes
 
 HOMESTAND is the public game brand. The repository and localStorage keys retain the original `iron-frontier` identifiers for compatibility with existing installs and player preferences. The `/assets/iron-frontier-hero.webp` filename is retained as an internal asset path. Operation Safe Haven is the civilian-protection mission; the original battlegrounds and private multiplayer remain available.
+
+
+## Install as an app
+
+HOMESTAND is a Progressive Web App: `manifest.webmanifest`, icons in `public/icons/` and a network-first service worker (`public/sw.js`) that caches the shell for offline start-up and never touches live WebSocket traffic. Chrome and Edge show **Install app** on the home screen; on iPhone use Share → Add to Home Screen. Installed, it opens full screen in landscape; in the browser, launching a battle on a phone requests full screen and a landscape lock where the browser allows it.

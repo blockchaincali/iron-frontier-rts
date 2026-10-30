@@ -2,6 +2,22 @@
 
 Asymmetrical RTS mode: **Community Defence** (team 0, west) against the fictional **Black Harmattan Raiders** (team 1, east), with the community's town and two outposts between them. Choose it from **Missions → Territory War**: pick a side, a 5-minute (recommended) or 3-minute preparation and an AI difficulty, then **Play vs AI** or **Host vs friend**. The city skin follows the campaign city selected on the map.
 
+## Modes (`src/modes.js`)
+
+Pick a mode on the Territory War card. All modes share the map, factions, economy, civilians and hacking.
+
+| Mode | Sides | Objective | Defeat |
+|---|---|---|---|
+| Territory War | Either side; solo, co-op or up to 2v2 | Destroy the enemy HQ | Only when your HQ falls |
+| Rescue Ops | Community Defence vs Raider AI (solo or co-op), 3 min prep | Eight residents start held at the raider camp; free them (rifle squad or patrol beside them for 2 s) and escort **six** home | HQ falls, or too few hostages remain alive to reach six |
+| Civilian Survival | Community Defence vs Raider AI (solo or co-op), 3 min prep | Survive 12 live minutes with at least **12 of 24** residents free (free, sheltered or rescued) | HQ falls, more than 12 residents killed, or fewer than 12 free at the end |
+
+Raider AI adapts: in Survival it sends two extra snatch teams and attacks a quarter more often; in Rescue Ops it keeps more fighters home guarding the camp. The objective chip shows live progress (rescued / still held, or time left / residents free).
+
+## First battle: fly-over and field briefing
+
+Each Territory War opens with a short camera fly-over from the enemy camp across the town to your HQ. First-time players then get a six-step field briefing (barracks → collector → training → checkpoint → ready → protect civilians) that advances as they do each step and can be skipped.
+
 ## Map (`public/maps.js` → `layouts.frontier`)
 
 | Area | Contents |

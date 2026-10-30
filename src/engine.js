@@ -4,6 +4,7 @@ const {blockers:sceneryBlockers,theatre:getTheatre,theatreIds,layouts,territoryO
 const {territory:territoryMethods,PREP_CHOICES}=require('./territory');
 const {civilians:civilianMethods}=require('./civilians');
 const {intel:intelMethods}=require('./intel');
+const {modes:modeMethods,MODES}=require('./modes');
 const {CATALOG}=require('./config');
 // Safe Haven assault pacing per difficulty: seconds between waves, opening size, growth per wave and cap.
 const WAVE_PLAN={recruit:{gap:24,base:2,grow:1,max:6},standard:{gap:18,base:3,grow:1.4,max:9},veteran:{gap:13,base:4,grow:2,max:12}};
@@ -13,8 +14,8 @@ const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 const hypot=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
 class Game {
- constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null,guided=false,theatreId=null,scenario=null,prepMinutes=5}={}){
-  this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.scenario=!this.missionId&&scenario==='territory'?'territory':null;this.prepMinutes=PREP_CHOICES.includes(Number(prepMinutes))?Number(prepMinutes):5;this.maxSupply=MAX_SUPPLY;this.mapId=this.missionId||(this.scenario?'frontier':['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.theatreId=this.missionId||this.scenario?(theatreIds.includes(theatreId)?theatreId:theatreIds[0]):null;this.theatre=this.theatreId?getTheatre(this.theatreId):null;this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.guided=mode==='solo'&&Boolean(guided);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
+ constructor({mode='solo',roomCode='TEST',duration=MAX_TIME,difficulty='veteran',mapId='coastal',terrainSeed=0x43a91f2d,training=false,missionId=null,guided=false,theatreId=null,scenario=null,prepMinutes=5,variant='war'}={}){
+  this.code=roomCode;this.mode=mode;this.missionId=mode==='solo'&&missionId==='safe-haven'?'safe-haven':null;this.scenario=!this.missionId&&scenario==='territory'?'territory':null;this.prepMinutes=PREP_CHOICES.includes(Number(prepMinutes))?Number(prepMinutes):5;this.variant=scenario==='territory'&&MODES[variant]?variant:'war';if(this.variant!=='war')this.prepMinutes=MODES[this.variant].prepMinutes;this.maxSupply=MAX_SUPPLY;this.mapId=this.missionId||(this.scenario?'frontier':['coastal','desert','frozen'].includes(mapId)?mapId:'coastal');this.theatreId=this.missionId||this.scenario?(theatreIds.includes(theatreId)?theatreId:theatreIds[0]):null;this.theatre=this.theatreId?getTheatre(this.theatreId):null;this.terrainSeed=Number(terrainSeed)>>>0;this.difficulty=['recruit','standard','veteran'].includes(difficulty)?difficulty:'recruit';this.training=mode==='solo'&&Boolean(training);this.guided=mode==='solo'&&Boolean(guided);this.duration=this.missionId?420:duration;this.phase='lobby';this.time=0;this.events=[];this.eventId=1;this.seq=1;
   this.teams=[];this.units=[];this.bases=[];this.nodes=[];this.structures=[];this.facilities=[];this.caches=[];this.mines=[];this.projectiles=[];this.blasts=[];this.participants=[];this.mission=null;
   this.win=null;this.aiClock=0;this.incomeClock=0;this.snapshotClock=0;this.round=0;
   this.resetWorld();
@@ -418,8 +419,8 @@ class Game {
   bases:this.bases.map(b=>({id:b.id,kind:b.kind,team:b.team,x:b.x,y:b.y,hp:Math.ceil(b.hp),maxHp:b.maxHp,radius:b.radius,production:b.production?{...b.production,progress:Math.round(b.production.progress*10)/10}:null,queue:b.queue?[...b.queue]:[],waiting:b.waiting||null,hacked:b.hackedUntil>this.time?Math.ceil(b.hackedUntil-this.time):0})),
   structures:this.structures.map(structure=>({...structure,hackedUntil:undefined,hacked:structure.hackedUntil>this.time?Math.ceil(structure.hackedUntil-this.time):0,queue:structure.queue?[...structure.queue]:[],hp:Math.ceil(structure.hp),progress:Math.round(structure.progress*10)/10,production:structure.production?{...structure.production,progress:Math.round(structure.production.progress*10)/10}:null})),facilities:this.facilities.map(facility=>({...facility,hp:Math.ceil(facility.hp)})),caches:this.caches.map(cache=>({...cache})),
   nodes:this.nodes.map(n=>({...n})),projectiles:this.projectiles.map(p=>({id:p.id,sourceId:p.sourceId,x:Math.round(p.x),y:Math.round(p.y),toX:p.toX,toY:p.toY,from:p.from,type:p.type})),
-  blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),civilians:this.civilianSnapshot(),intel:this.scenario==='territory'?this.intelSnapshot():null,participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
+  blasts:this.blasts.map(b=>({id:b.id,kind:b.kind||null,x:b.x,y:b.y,age:b.age,delay:b.delay,radius:b.radius,team:b.team})),events:this.events.slice(-7),civilians:this.civilianSnapshot(),intel:this.scenario==='territory'?this.intelSnapshot():null,variant:this.variant,participants:this.participants.map(p=>({id:p.id,name:p.name,team:p.team,bot:p.bot,connected:p.connected}))};
  }
 }
-Object.assign(Game.prototype,territoryMethods,civilianMethods,intelMethods);
+Object.assign(Game.prototype,territoryMethods,civilianMethods,intelMethods,modeMethods);
 module.exports={Game};

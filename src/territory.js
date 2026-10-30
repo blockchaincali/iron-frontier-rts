@@ -36,6 +36,7 @@ const territory={
   for(let team=0;team<2;team++){const hq=this.bases[team],side=team===0?1:-1;
    [['engineer',90,-40],['engineer',90,40],['rifle',130,-90],['rifle',150,0],['rifle',130,90]].forEach(([type,dx,dy])=>{const u=this.spawnAt(team,type,hq.x+side*dx,hq.y+dy);u.angle=team===0?0:Math.PI})}
   for(const p of this.participants)if(p.bot)this.ais.set(p.team,new FactionAI(this,p.team,this.mode==='solo'?this.difficulty:'standard'));
+  this.setupVariant();
   this.event((this.theatre?this.theatre.city.toUpperCase()+' · ':'')+'PREPARE YOUR TERRITORY - '+Math.round(this.territory.prepDuration/60)+' MINUTES OF CEASEFIRE',null);
  },
  // Host (solo) or both commanders (PvP) may cut the preparation short; it always moves to the
@@ -77,7 +78,8 @@ const territory={
   else if(t.stage==='live'){t.liveTime+=dt;
    if(this.incomeClockTerritory===undefined)this.incomeClockTerritory=0;this.incomeClockTerritory+=dt;
    if(this.incomeClockTerritory>=1){this.incomeClockTerritory-=1;for(const n of this.nodes)if(n.owner>=0)this.teams[n.owner].points+=1}
-   // Score is a running tally only: a side is defeated solely when its HQ is destroyed.
+   // Score is a running tally only: in Territory War a side is defeated solely when its HQ falls.
+   this.stepVariant();
   }
  },
  territoryIncome(seconds){
@@ -124,7 +126,7 @@ const territory={
  territorySnapshot(){
   const t=this.territory;if(!t)return null;
   const remaining=t.stage==='prepare'?t.prepDuration-t.stageTime:t.stage==='warning'?t.warningDuration-t.stageTime:t.liveTime;
-  return {stage:t.stage,remaining:Math.max(0,Math.ceil(remaining)),prepDuration:t.prepDuration,warningDuration:t.warningDuration,liveDuration:t.liveDuration,winPoints:t.winPoints,threat:t.threat,ready:t.ready||null,readyBy:t.readyBy||[],skipBy:t.skipBy||[],
+  return {objective:t.objective||null,stage:t.stage,remaining:Math.max(0,Math.ceil(remaining)),prepDuration:t.prepDuration,warningDuration:t.warningDuration,liveDuration:t.liveDuration,winPoints:t.winPoints,threat:t.threat,ready:t.ready||null,readyBy:t.readyBy||[],skipBy:t.skipBy||[],
    ai:[...this.ais.values()].map(ai=>({team:ai.team,level:ai.level}))};
  }
 };

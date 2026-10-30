@@ -19,7 +19,7 @@ const ROUTES=['north','central','south'];
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 
 class FactionAI{
- constructor(game,team,level='standard'){this.game=game;this.team=team;this.level=PROFILES[level]?level:'standard';this.p=PROFILES[this.level];this.clock=0;this.lastAttack=-1e9;this.opening=null;this.attackers=new Set();this.attackCount=0}
+ constructor(game,team,level='standard'){this.game=game;this.team=team;this.level=PROFILES[level]?level:'standard';this.p=game.variantProfile?game.variantProfile(PROFILES[this.level]):PROFILES[this.level];this.clock=0;this.lastAttack=-1e9;this.opening=null;this.attackers=new Set();this.attackCount=0}
  get layout(){return MAPS.layouts.frontier}
  get hq(){return this.game.bases.find(b=>b.team===this.team&&b.kind==='hq'&&b.hp>0)}
  get enemyHq(){return this.game.bases.find(b=>b.team!==this.team&&b.kind==='hq'&&b.hp>0)}

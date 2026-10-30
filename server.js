@@ -11,7 +11,7 @@ const send=(ws,data)=>{if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify
 // otherwise the player's view falls further and further behind and the game appears to freeze.
 const STATE_BACKLOG=48*1024;
 const sendState=(ws,data)=>{if(ws?.readyState!==WebSocket.OPEN)return;if(ws.bufferedAmount>STATE_BACKLOG&&data.phase==='playing'){ws.skipped=(ws.skipped||0)+1;return}ws.send(JSON.stringify(data))};
-const staticFiles={'/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/home.js':'home.js','/town.js':'town.js','/platform.js':'platform.js','/audio.js':'audio.js','/catalog.js':'catalog.js','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/homestand-poster.jpg':'assets/homestand-poster.jpg','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
+const staticFiles={'/manifest.webmanifest':'manifest.webmanifest','/sw.js':'sw.js','/icons/icon-192.png':'icons/icon-192.png','/icons/icon-512.png':'icons/icon-512.png','/icons/maskable-512.png':'icons/maskable-512.png','/icons/apple-touch-icon.png':'icons/apple-touch-icon.png','/maps.js':'maps.js','/3d.js':'3d.js','/3d.css':'3d.css','/home.js':'home.js','/town.js':'town.js','/platform.js':'platform.js','/audio.js':'audio.js','/catalog.js':'catalog.js','/':'index.html','/index.html':'index.html','/style.css':'style.css','/game.js':'game.js','/assets/iron-frontier-hero.webp':'assets/iron-frontier-hero.webp','/assets/homestand-poster.jpg':'assets/homestand-poster.jpg','/assets/3d/coastal-ground-albedo.jpg':'assets/3d/coastal-ground-albedo.jpg','/assets/3d/azure-armor-albedo.jpg':'assets/3d/azure-armor-albedo.jpg','/assets/3d/crimson-armor-albedo.jpg':'assets/3d/crimson-armor-albedo.jpg','/assets/3d/impact-explosion.png':'assets/3d/impact-explosion.png'};
 // Browsers receive the minified Three.js build; the stable /vendor/three.module.js URL keeps the import map unchanged.
 const vendorFiles={'/vendor/three.module.js':['three','build','three.module.min.js'],'/vendor/three.core.min.js':['three','build','three.core.min.js'],'/vendor/three.core.js':['three','build','three.core.min.js'],'/vendor/BufferGeometryUtils.js':['three','examples','jsm','utils','BufferGeometryUtils.js']};
 const compressible=/\.(html|css|js)$/,responseCache=new Map();
@@ -25,13 +25,14 @@ function serveFile(req,res,filePath,cacheControl){
   fs.readFile(filePath,(readError,data)=>{if(readError){res.writeHead(404);return res.end('Not found')}const body=gzip?zlib.gzipSync(data,{level:9}):data;responseCache.set(key,{etag,body});finish(body)})
  })
 }
-const contentType={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp'};
+const contentType={'.html':'text/html; charset=utf-8','.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp','.webmanifest':'application/manifest+json'};
 const server=http.createServer((req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname;
  if(vendorFiles[pathname])return serveFile(req,res,path.join(__dirname,'node_modules',...vendorFiles[pathname]),'public, max-age=604800');
  if(pathname==='/healthz'){res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});return res.end(JSON.stringify({status:'ok',game:'HOMESTAND',rooms:rooms.size}))}
  const file=staticFiles[pathname];if(!file){res.writeHead(404);return res.end('Not found')}
- serveFile(req,res,path.join(__dirname,'public',file),'public,max-age=60')
+ // The service worker must always be revalidated so new deploys take over promptly.
+ serveFile(req,res,path.join(__dirname,'public',file),file==='sw.js'?'no-cache':'public,max-age=60')
 });
 // Snapshots are repetitive JSON: per-message deflate cuts bandwidth roughly five-fold.
 const wss=new WebSocketServer({server,path:'/ws',maxPayload:8192,perMessageDeflate:{threshold:512,zlibDeflateOptions:{level:4,memLevel:7},concurrencyLimit:8}});
@@ -80,7 +81,7 @@ function register(ws,room,p,existing=false){
 function create(ws,msg){
  if(ws.room)return send(ws,{type:'error',message:'Already in a room'});
  let code=newCode();while(rooms.has(code))code=newCode();
- const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null,scenario=!missionId&&msg.scenario==='territory'?'territory':null,hostTeam=scenario&&msg.faction==='raiders'?1:0,prepMinutes=[3,5].includes(Number(msg.prepMinutes))?Number(msg.prepMinutes):5;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||(scenario?'frontier':String(msg.mapId||''))),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,scenario,prepMinutes,theatreId:String(msg.theatreId||''),training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true),guided:msg.guided===true});
+ const mode=msg.mode==='pvp'?'pvp':'solo',missionId=mode==='solo'&&msg.missionId==='safe-haven'?'safe-haven':null,scenario=!missionId&&msg.scenario==='territory'?'territory':null,variant=scenario&&mode==='solo'&&['rescue','survival'].includes(msg.variant)?msg.variant:'war',hostTeam=scenario&&msg.faction==='raiders'&&variant==='war'?1:0,prepMinutes=[3,5].includes(Number(msg.prepMinutes))?Number(msg.prepMinutes):5;const difficulty=mode==='solo'&&['recruit','standard','veteran'].includes(msg.difficulty)?msg.difficulty:'recruit';const map=getMap(missionId||(scenario?'frontier':String(msg.mapId||''))),terrainSeed=(map.seed^Buffer.from(code).reduce((value,byte)=>Math.imul(value^byte,16777619)>>>0,2166136261))>>>0;const game=new Game({mode,roomCode:code,difficulty,mapId:map.id,terrainSeed,missionId,scenario,prepMinutes,variant,theatreId:String(msg.theatreId||''),training:mode==='solo'&&(missionId==='safe-haven'||msg.training===true),guided:msg.guided===true});
  // Co-op: a Territory War against the AI that waits in the lobby for a second commander on the host's side.
  const coop=mode==='solo'&&scenario==='territory'&&msg.coop===true;
  const room={code,game,hostId:null,coop,sockets:new Map(),chat:[],lastActivity:Date.now()};rooms.set(code,room);
