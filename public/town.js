@@ -226,7 +226,16 @@ export function paintGround(size=2048){
 
 export function groundMesh(size=2048,anisotropy=8){
  const painted=paintGround(size),texture=new THREE.CanvasTexture(painted.canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=anisotropy;
- const detail=detailTexture();const material=new THREE.MeshStandardMaterial({map:texture,bumpMap:detail,bumpScale:.6,roughness:.95,metalness:0}),mesh=new THREE.Mesh(new THREE.PlaneGeometry(painted.width,painted.depth),material);mesh.rotation.x=-Math.PI/2;mesh.position.y=-.04;mesh.receiveShadow=true;mesh.userData.townGround=true;return mesh}
+ const detail=detailTexture();const material=new THREE.MeshStandardMaterial({map:texture,bumpMap:detail,bumpScale:.6,roughness:.95,metalness:0}),mesh=new THREE.Mesh(new THREE.PlaneGeometry(painted.width,painted.depth),material);
+ // Close-up detail: the painted map is ~25 texels per metre, so a tiled grain at two scales is multiplied
+ // into the colour; up close the ground stays crisp instead of turning into a soft smear.
+ const grain=grainTexture();material.customProgramCacheKey=()=>'homestand-ground-grain';
+ material.onBeforeCompile=shader=>{shader.uniforms.grainMap={value:grain};shader.fragmentShader=shader.fragmentShader.replace('void main() {','uniform sampler2D grainMap;\nvoid main() {').replace('#include <map_fragment>','#include <map_fragment>\n{vec2 gu=vMapUv*vec2(96.,54.);float g=texture2D(grainMap,gu).r;float h=texture2D(grainMap,gu*.27+vec2(.37,.11)).g;diffuseColor.rgb*=mix(1.,g*1.1+h*.9,.34);}')};
+ mesh.rotation.x=-Math.PI/2;mesh.position.y=-.04;mesh.receiveShadow=true;mesh.userData.townGround=true;return mesh}
+function grainTexture(){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d'),rng=rngFrom(57);x.fillStyle='rgb(128,128,128)';x.fillRect(0,0,256,256);
+ for(let i=0;i<900;i++){const r=2+rng()*9,v=80+Math.floor(rng()*96),g=x.createRadialGradient(0,0,0,0,0,r);  const px=rng()*256,py=rng()*256;g.addColorStop(0,`rgba(${v},${v+Math.floor(rng()*30-15)},${v},.55)`);g.addColorStop(1,'rgba(128,128,128,0)');for(const dx of [-256,0,256])for(const dy of [-256,0,256]){x.save();x.translate(px+dx,py+dy);x.fillStyle=g;x.fillRect(-r,-r,r*2,r*2);x.restore()}}
+ for(let i=0;i<5200;i++){const v=70+Math.floor(rng()*120);x.fillStyle=`rgba(${v},${v},${v},.5)`;x.fillRect(rng()*256,rng()*256,1+rng()*2,1+rng()*1.5)}
+ const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return t}
 function detailTexture(){const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d'),rng=rngFrom(91);x.fillStyle='#808080';x.fillRect(0,0,256,256);for(let i=0;i<2600;i++){const v=90+Math.floor(rng()*90);x.fillStyle=`rgb(${v},${v},${v})`;x.fillRect(rng()*256,rng()*256,1+rng()*3,1+rng()*2)}const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.repeat.set(36,20);return t}
 
 // ---------- People and traffic (homepage and evacuation) ----------
